@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from .models import Lesson, Grade, Discipline
 from students.models import Teacher, Group, Student, Institution
 from datetime import date as dt_date, timedelta
-import pandas as pd
 from openpyxl import Workbook
 from django.http import HttpResponse
 
