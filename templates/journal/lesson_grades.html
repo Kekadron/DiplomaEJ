@@ -4,7 +4,7 @@
 
 {% block content %}
     <h1>{{ lesson.discipline }} — {{ lesson.date }} ({{ lesson.group.name }})</h1>
-    <p><a href="/teacher/" class="btn" style="margin-bottom:10px">← Назад к занятиям</a></p>
+    <p><a href="{% url 'teacher_dashboard' date=lesson.date %}" class="btn" style="margin-bottom:10px">← Назад к занятиям</a></p>
 
     <form method="post">
         {% csrf_token %}

@@ -50,39 +50,53 @@ def teacher_dashboard(request, date=None):
 
 @login_required
 def lesson_grades(request, lesson_id):
+    """Просмотр и редактирование журнала оценок по занятию"""
     lesson = get_object_or_404(Lesson, id=lesson_id)
-    
-    if lesson.teacher.user != request.user:
+
+    # Проверка прав доступа
+    is_owner = hasattr(request.user, 'teacher') and request.user.teacher == lesson.teacher
+    if not (request.user.is_superuser or request.user.is_staff or is_owner):
         messages.error(request, "У вас нет доступа к этому занятию.")
         return redirect('teacher_dashboard')
-    
-    grades = Grade.objects.filter(lesson=lesson).select_related('student').order_by('student__last_name')
-    
+
+    # === АВТОМАТИЧЕСКОЕ СОЗДАНИЕ ОЦЕНОК ДЛЯ НОВЫХ СТУДЕНТОВ ===
+    students = lesson.group.students.all()
+    for student in students:
+        Grade.objects.get_or_create(
+            student=student,
+            lesson=lesson
+        )
+    # ========================================================
+
+    # Получаем все оценки (уже с новыми студентами)
+    grades = Grade.objects.filter(lesson=lesson).select_related('student').order_by(
+        'student__last_name', 'student__first_name'
+    )
+
     if request.method == 'POST':
         saved = 0
         for grade in grades:
             value = request.POST.get(f'grade_{grade.id}', '')
             comment = request.POST.get(f'comment_{grade.id}', '')
-            
+
             if grade.value != value or grade.comment != comment:
                 grade.value = value
                 grade.comment = comment
                 grade.save()
                 saved += 1
-        
+
         if saved > 0:
             messages.success(request, f'Сохранено {saved} изменений!')
         else:
             messages.info(request, 'Изменений не было')
-        
+
         return redirect('lesson_grades', lesson_id=lesson.id)
-    
+
     context = {
         'lesson': lesson,
         'grades': grades,
     }
     return render(request, 'journal/lesson_grades.html', context)
-
 
 @login_required
 def lesson_new(request):
