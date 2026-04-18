@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Создать занятие{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Создать новое занятие</h1>
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if institutions|length > 1 %}
+        <label>Учебное заведение</label>
+        <select name="institution" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}">{{ inst.name }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+
+        <label>Дисциплина</label>
+        <select name="discipline" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for d in disciplines %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Группа</label>
+        <select name="group" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for g in groups %}
+            <option value="{{ g.id }}">{{ g.name }} ({{ g.specialty }})</option>
+            {% endfor %}
+        </select>
+
+        <label>Преподаватель</label>
+        <select name="teacher" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for t in teachers %}
+            <option value="{{ t.id }}">{{ t.last_name }} {{ t.first_name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Дата занятия</label>
+        <input type="date" name="date" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+        
+        <label>Номер пары</label>
+        <select name="pair_number" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            <option value="">Выберите номер пары</option>
+            <option value="1">1 пара</option>
+            <option value="2">2 пара</option>
+            <option value="3">3 пара</option>
+            <option value="4">4 пара</option>
+            <option value="5">5 пара</option>
+            <option value="6">6 пара</option>
+        </select>
+
+        <label>Тема занятия</label>
+        <input type="text" name="topic" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+
+        <button type="submit" class="btn btn-green">Создать занятие</button>
+    </form>
+</div>
+{% endblock %}

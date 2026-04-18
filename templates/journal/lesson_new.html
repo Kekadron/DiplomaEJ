@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Новое занятие{% endblock %}
+
+{% block content %}
+    <h1>Создать новое занятие</h1>
+    
+    <form method="post" style="max-width:600px; background:white; padding:30px; border-radius:8px;">
+        {% csrf_token %}
+        
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Дисциплина</label>
+        <select name="discipline" required style="width:100%; padding:10px;">
+            {% for d in disciplines %}
+            <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+        </select>
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Группа</label>
+        <select name="group" required style="width:100%; padding:10px;">
+            {% for g in groups %}
+            <option value="{{ g.id }}">{{ g.name }} ({{ g.specialty }})</option>
+            {% endfor %}
+        </select>
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Дата занятия</label>
+        <input type="date" name="date" required style="width:100%; padding:10px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Тема занятия (необязательно)</label>
+        <input type="text" name="topic" style="width:100%; padding:10px;">
+
+        <br><br>
+        <button type="submit" style="padding:12px 25px; background:#28a745; color:white; border:none; font-size:16px;">
+            Создать занятие и открыть журнал
+        </button>
+    </form>
+    
+    <br>
+    <a href="/teacher/">← Назад в кабинет</a>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+
+{% block title %}Мои оценки{% endblock %}
+
+{% block content %}
+
+<h1>Мои оценки — {{ student.last_name }} {{ student.first_name }}</h1>
+
+<a href="{% url 'student_schedule_today' %}" class="btn mt-20">📅 Расписание</a>
+
+<div class="mt-30">
+    {% for discipline, grades_list in grades_by_discipline.items %}
+    <div class="card mt-20">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div style="font-weight: bold; font-size: 18px;">
+                {{ discipline }}
+            </div>
+            
+            <div style="background: #f0f0f0; padding: 8px 18px; border-radius: 25px;">
+                <span style="font-weight: bold;">Средний балл:</span>
+                <span style="font-size: 20px; font-weight: bold; margin-left: 10px;
+                    {% with avg=avg_scores|get_item:discipline %}
+                        {% if avg >= 4.5 %}color: #28a745;
+                        {% elif avg >= 3.5 %}color: #17a2b8;
+                        {% elif avg >= 2.5 %}color: #ffc107;
+                        {% elif avg > 0 %}color: #dc3545;
+                        {% else %}color: #999;{% endif %}
+                    {% endwith %}">
+                    {% with avg=avg_scores|get_item:discipline %}
+                        {% if avg > 0 %}
+                            {{ avg }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    {% endwith %}
+                </span>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px;">
+            {% for grade in grades_list %}
+                <span style="padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 14px;
+                    {% if grade.value == '5' %}background: #28a745; color: white;
+                    {% elif grade.value == '4' %}background: #17a2b8; color: white;
+                    {% elif grade.value == '3' %}background: #ffc107; color: black;
+                    {% elif grade.value == '2' %}background: #dc3545; color: white;
+                    {% elif grade.value == 'Зач' %}background: #6c757d; color: white;
+                    {% elif grade.value == 'Н' %}background: #f8d7da; color: #721c24;
+                    {% else %}background: #e9ecef; color: #6c757d;{% endif %}">
+                    {{ grade.value|default:'—' }}
+                </span>
+            {% endfor %}
+        </div>
+        
+        <!-- Дополнительная статистика по дисциплине -->
+        <div style="margin-top: 12px; font-size: 12px; color: #666; display: flex; gap: 15px;">
+            {% with grades_list|length as total %}
+                <span>📊 Всего оценок: {{ total }}</span>
+            {% endwith %}
+            {% with numeric_count=0 %}
+                {% for grade in grades_list %}
+                    {% if grade.value.isdigit and grade.value in '2345' %}
+                        {% with numeric_count=numeric_count|add:1 %}
+                        {% endwith %}
+                    {% endif %}
+                {% endfor %}
+            {% endwith %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="card">
+        <p style="text-align: center; color: #666;">У вас пока нет оценок</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

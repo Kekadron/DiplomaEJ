@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Новая группа{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Создать новую группу</h1>
+    
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Учебное заведение</label>
+        <select name="institution" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.short_name }})</option>
+            {% endfor %}
+        </select>
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Название группы</label>
+        <input type="text" name="name" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Специальность</label>
+        <input type="text" name="specialty" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Год начала обучения</label>
+        <input type="number" name="start_year" required style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+
+        <button type="submit" class="btn btn-green">Создать группу</button>
+    </form>
+</div>
+{% endblock %}

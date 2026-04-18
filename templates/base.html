@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Электронный журнал СПО{% endblock %}</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            background: #f5f7fb;
+        }
+
+        header {
+            background: #007bff;
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 22px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        header h1:hover {
+            opacity: 0.9;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        nav a, nav button {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        nav a:hover, nav button:hover {
+            background: rgba(255,255,255,0.25);
+            text-decoration: none;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0;
+            padding: 20px 25px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .btn-green {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-green:hover {
+            background: #218838;
+        }
+
+        .btn-red {
+            
+            background: #ec3e4f
+            
+        }
+
+        .btn-red:hover {
+            background: #e71126
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow-x: auto;
+            display: block;
+        }
+
+        .table thead,
+        .table tbody {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .table th {
+            background: #007bff;
+            color: white;
+            padding: 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .table td {
+            padding: 14px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .table tr:hover {
+            background: #f1f7ff;
+        }
+
+        .nav-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .h1-head{
+            margin: 0;
+            font-size: 22px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+        }
+
+        label {
+            font-weight: 600;
+            color: #333;
+            margin-top: 5px;
+        }
+
+        input, select {
+            transition: all 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007bff !important;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .mt-20 { margin-top: 20px; }
+        .mt-30 { margin-top: 30px; }
+        .text-center { text-align: center; }
+        .alert {
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+.flash-message {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.flash-message.success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.flash-message.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.flash-message.info {
+    background: #cce5ff;
+    color: #004085;
+}
+.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: 0.4s ease;
+}
+
+    </style>
+</head>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const messages = document.querySelectorAll(".flash-message");
+
+    messages.forEach(msg => {
+        setTimeout(() => {
+            msg.style.transition = "0.5s";
+            msg.style.opacity = "0";
+            msg.style.transform = "translateY(-10px)";
+
+            setTimeout(() => {
+                msg.remove();
+            }, 500);
+        }, 3000); // 3 секунды
+    });
+});
+</script>
+<body>
+
+<header>
+    <h1 onclick="window.location.href='/'" class="h1-head">Электронный журнал СПО</h1>
+
+    <nav>
+        {% if request.user.is_authenticated %}
+            
+            {% if request.path|slice:':9' == '/teacher/' or request.path|slice:':8' == '/lesson/' %}
+                <a href="/teacher/">Мои занятия</a>
+            {% elif request.path|slice:':13' == '/admin-panel/' %}
+                <a href="/admin-panel/">Панель администратора</a>
+            {% elif request.path|slice:':9' == '/student/' %}
+                <a href="/student/">Мои оценки</a>
+            {% endif %}
+
+            <form method="post" action="/accounts/logout/" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Выход</button>
+            </form>
+
+        {% endif %}
+    </nav>
+</header>
+
+<div class="container">
+    {% if messages %}
+    <div id="messages-container" style="margin-bottom:15px;">
+        {% for message in messages %}
+            <div class="flash-message {{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>

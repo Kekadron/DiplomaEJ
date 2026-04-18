@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block content %}
+
+<h1>Панель администратора</h1>
+
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px;" class="mt-20">
+
+    <div class="card text-center">
+        <h3>Группы</h3>
+        <h2>{{ total_groups }}</h2>
+        <a href="{% url 'group_list' %}" class="btn">Открыть</a>
+    </div>
+
+    <div class="card text-center">
+        <h3>Студенты</h3>
+        <h2>{{ total_students }}</h2>
+        <a href="{% url 'student_list' %}" class="btn">Открыть</a>
+    </div>
+
+    <div class="card text-center">
+        <h3>Преподаватели</h3>
+        <h2>{{ total_teachers }}</h2>
+        <a href="{% url 'teacher_list' %}" class="btn">Открыть</a>
+    </div>
+
+</div>
+
+<div class="mt-30">
+    <a href="{% url 'schedule_create' %}" class="btn btn-green">+ Создать занятие</a>
+    <button onclick="openImportModal()" class="btn-green" style="background: #6f42c1;">
+    Импорт из Excel
+</button>
+</div>
+
+{% if is_superuser %}
+<div class="mt-20">
+    <a href="/admin/" class="btn btn-red">Django Admin</a>
+</div>
+{% endif %}
+
+<!-- модальное окно -->
+<div id="importModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+    
+    <div style="background:white; padding:30px; border-radius:12px; width:400px;">
+        <h3 style="margin-bottom:20px;">Импорт расписания</h3>
+
+        <form method="post" action="{% url 'import_schedule' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <input type="file" name="file" accept=".xlsx" required style="margin-bottom:20px;">
+
+            <div style="display:flex; gap:10px;">
+                <button type="submit" class="btn-green">Загрузить</button>
+                
+                <a href="{% url 'download_template' %}" class="btn">
+                    Скачать шаблон
+                </a>
+            </div>
+        </form>
+
+        <button onclick="closeImportModal()" class="btn btn-red" style="margin-top:10px;">
+            Закрыть
+        </button>
+    </div>
+</div>
+
+<script>
+function openImportModal() {
+    document.getElementById('importModal').style.display = 'flex';
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').style.display = 'none';
+}
+</script>
+
+{% endblock %}

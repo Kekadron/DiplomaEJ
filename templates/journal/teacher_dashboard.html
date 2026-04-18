@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои занятия{% endblock %}
+
+{% block content %}
+
+<h1>Мои занятия</h1>
+
+<div class="card mt-20">
+
+    <!-- Навигация по дням -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <a class="nav-link" href="{% url 'teacher_dashboard' previous_date %}">
+            ← Предыдущий день
+        </a>
+
+        <div style="font-size:20px; font-weight:bold;">
+            {{ date }}
+        </div>
+
+        <a class="nav-link" href="{% url 'teacher_dashboard' next_date %}">
+            Следующий день →
+        </a>
+    </div>
+
+    <form method="get" id="dateForm" style="text-align:center; margin-bottom:20px;">
+    <input 
+        type="date" 
+        id="teacherDatePicker"
+        value="{{ date|date:'Y-m-d' }}"
+        style="padding:8px 12px; border-radius:6px; border:1px solid #ccc; font-size:16px;"
+    >
+    </form>
+
+    <script>
+        document.getElementById('teacherDatePicker').addEventListener('change', function() {
+        const selectedDate = this.value;
+        window.location.href = "/teacher/" + selectedDate + "/";
+    });
+    </script>
+
+    {% if lessons %}
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+
+            {% for lesson in lessons %}
+            <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+
+                <div>
+                    <div style="font-size:18px; font-weight:bold;">
+                        {{ lesson.discipline.name }}
+                    </div>
+
+                    <div style="color:#666;">
+                        Группа: {{ lesson.group.name }}
+                    </div>
+
+                    <div style="color:#666;">
+                        Тема: {{ lesson.topic }}
+                    </div>
+                </div>
+
+                <div style="text-align:right;">
+                    <div><b>Пара {{ lesson.pair_number }}</b></div>
+
+                    <div style="margin-top:5px;">
+                        <a class="btn-green" href="{% url 'lesson_grades' lesson.id %}">
+                            Оценить
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+        <div class="text-center mt-30" style="color:#777;">
+            Занятий нет
+        </div>
+    {% endif %}
+
+</div>
+
+<a href="{% url 'teacher_dashboard_today' %}" class="btn mt-20">
+    Сегодня
+</a>
+
+{% endblock %}

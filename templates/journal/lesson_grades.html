@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lesson.discipline }} — {{ lesson.date }}{% endblock %}
+
+{% block content %}
+    <h1>{{ lesson.discipline }} — {{ lesson.date }} ({{ lesson.group.name }})</h1>
+    <p><a href="/teacher/" class="btn" style="margin-bottom:10px">← Назад к занятиям</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width:10%;">№</th>
+                    <th>Студент</th>
+                    <th style="width:10%;">Оценка</th>
+                    <th>Комментарий</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for grade in grades %}
+                <tr>
+                    <td style="width:10%;">{{ forloop.counter }}</td>
+                    <td>
+                        {{ grade.student.last_name }} {{ grade.student.first_name }}
+                    </td>
+                    <td class="grade-cell" 
+                        data-grade-id="{{ grade.id }}"
+                        data-value="{{ grade.value|default:'' }}"
+                        style="padding:16px; font-size:24px; font-weight:bold; cursor:pointer; 
+                               width:10%; text-align:center;">
+                        <span class="grade-value">{{ grade.value|default:'—' }}</span>
+                        <input type="hidden" name="grade_{{ grade.id }}" value="{{ grade.value|default:'' }}">
+                    </td>
+                    <td style="padding:16px;">
+                        <input type="text" name="comment_{{ grade.id }}" 
+                               value="{{ grade.comment|default:'' }}" 
+                               placeholder="Комментарий..."
+                               style="width:100%; padding:12px; border:1px solid #ddd; border-radius:6px;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <br><br>
+        <button type="submit" class="btn-green">
+            💾 Сохранить все изменения
+        </button>
+    </form>
+
+    <!-- Модальное окно -->
+    <div id="grade-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:16px; box-shadow:0 15px 40px rgba(0,0,0,0.4); text-align:center; width:380px;">
+            <h3 style="margin:0 0 25px 0;">Выберите оценку</h3>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+                <button class="modal-grade-btn" data-value="5" style="padding:25px; font-size:28px; background: #d4edda; border:none; border-radius:12px; cursor:pointer;">5</button>
+                <button class="modal-grade-btn" data-value="4" style="padding:25px; font-size:28px; background: #fff3cd; border:none; border-radius:12px; cursor:pointer;">4</button>
+                <button class="modal-grade-btn" data-value="3" style="padding:25px; font-size:28px; background: #f8d7e9; border:none; border-radius:12px; cursor:pointer;">3</button>
+                <button class="modal-grade-btn" data-value="2" style="padding:25px; font-size:28px; background: #f8d7da; border:none; border-radius:12px; cursor:pointer;">2</button>
+                <button class="modal-grade-btn" data-value="Н" style="padding:25px; font-size:28px; background: #cce5ff; border:none; border-radius:12px; cursor:pointer;">Н</button>
+                <button class="modal-grade-btn" data-value="зач" style="padding:25px; font-size:28px; background: #d1ecf1; border:none; border-radius:12px; cursor:pointer;">зач</button>
+                <button class="modal-grade-btn" data-value="н/зач" style="padding:25px; font-size:28px; background: #f8d7da; border:none; border-radius:12px; cursor:pointer;">н/з</button>
+            </div>
+            <button id="modal-close" style="margin-top:25px; padding:12px 40px; background:#6c757d; color:white; border:none; border-radius:8px; font-size:16px;">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        function getGradeColor(value) {
+            const colors = {
+                '5': '#d4edda',
+                '4': '#fff3cd',
+                '3': '#f8d7e9',
+                '2': '#f8d7da',
+                'Н': '#cce5ff',
+                'зач': '#d1ecf1',
+                'н/зач': '#f8d7da'
+            };
+            return colors[value] || '#ffffff';
+        }
+
+        // При загрузке страницы красим ячейки
+        document.querySelectorAll('.grade-cell').forEach(cell => {
+            const value = cell.getAttribute('data-value');
+            if (value) {
+                cell.style.backgroundColor = getGradeColor(value);
+            }
+
+            cell.addEventListener('click', function() {
+                window.currentCell = this;
+                document.getElementById('grade-modal').style.display = 'flex';
+            });
+        });
+
+        // Выбор оценки в модальном окне
+        document.querySelectorAll('.modal-grade-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (window.currentCell) {
+                    const value = this.getAttribute('data-value');
+                    const hiddenInput = window.currentCell.querySelector('input[type="hidden"]');
+                    const span = window.currentCell.querySelector('.grade-value');
+                    
+                    span.textContent = value;
+                    hiddenInput.value = value;
+                    window.currentCell.setAttribute('data-value', value);
+                    window.currentCell.style.backgroundColor = getGradeColor(value);
+                }
+                document.getElementById('grade-modal').style.display = 'none';
+            });
+        });
+
+        document.getElementById('modal-close').addEventListener('click', () => {
+            document.getElementById('grade-modal').style.display = 'none';
+        });
+    </script>
+{% endblock %}

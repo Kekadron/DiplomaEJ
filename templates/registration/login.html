@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход в систему{% endblock %}
+
+{% block content %}
+<div style="max-width: 450px; margin: 50px auto;">
+    <div class="card" style="padding: 40px;">
+        <h1 style="text-align: center; margin-bottom: 30px; font-size: 28px;">Вход в систему</h1>
+
+        {% if form.errors %}
+            <div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #f5c6cb;">
+                Неверный логин или пароль
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            
+            {% for field in form %}
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <div style="color: #dc3545; font-size: 14px; margin-top: 5px;">{{ field.errors }}</div>
+                {% endif %}
+            {% endfor %}
+            
+            <button type="submit" class="btn" style="width: 100%; padding: 14px; font-size: 16px; margin-top: 25px;">
+                Войти
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
