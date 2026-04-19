@@ -3,11 +3,13 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db import IntegrityError
 from datetime import datetime, timedelta
 from .models import Lesson, Grade, Discipline
 from students.models import Teacher, Group, Student, Institution
 from datetime import date as dt_date, timedelta
 from openpyxl import Workbook
+from openpyxl.styles import Font
 from django.http import HttpResponse
 
 @login_required
@@ -161,6 +163,7 @@ def admin_dashboard(request):
         total_groups = Group.objects.count()
         total_students = Student.objects.count()
         total_teachers = Teacher.objects.count()
+        total_disciplines = Discipline.objects.count()
     else:
         # Завуч видит только своё заведение
         teacher = Teacher.objects.get(user=request.user)
@@ -169,12 +172,14 @@ def admin_dashboard(request):
         total_groups = Group.objects.filter(institution=institution).count()
         total_students = Student.objects.filter(group__institution=institution).count()
         total_teachers = Teacher.objects.filter(institution=institution).count()
+        total_disciplines = Discipline.objects.filter(lesson__group__institution=institution).distinct().count()
 
     context = {
         'total_institutions': total_institutions,
         'total_groups': total_groups,
         'total_students': total_students,
         'total_teachers': total_teachers,
+        'total_disciplines': total_disciplines,
         'is_superuser': request.user.is_superuser,   # передаём в шаблон
     }
     return render(request, 'journal/admin_dashboard.html', context)
@@ -474,6 +479,10 @@ def student_schedule(request, date=None):
 
 @login_required
 def import_schedule(request):
+    created = 0
+    skipped = 0
+    errors = 0
+    conflicts = []
     
     if not (request.user.is_superuser or request.user.is_staff):
         return redirect('login')
@@ -492,41 +501,65 @@ def import_schedule(request):
             created = 0
 
             for _, row in df.iterrows():
-                date = pd.to_datetime(row['Дата']).date()
-                pair = int(row['Пара'])
-                group = Group.objects.filter(name=row['Группа']).first()
-                discipline = Discipline.objects.filter(name=row['Дисциплина']).first()
-                group_id = group.id
-                
-                if not group or not discipline:
-                    continue
+                try:
+                    date = pd.to_datetime(row['Дата']).date()
+                    pair = int(row['Пара'])
+                    group = Group.objects.filter(name=row['Группа']).first()
+                    discipline = Discipline.objects.filter(name=row['Дисциплина']).first()
 
-                teacher_parts = str(row['Преподаватель']).split()
-                teacher = Teacher.objects.filter(last_name=teacher_parts[0]).first()
+                    if not group or not discipline:
+                        errors += 1
+                        continue
 
-                if not teacher:
-                    continue
+                    teacher_parts = str(row['Преподаватель']).split()
+                    teacher = Teacher.objects.filter(last_name=teacher_parts[0]).first()
 
-                lesson, created_flag = Lesson.objects.get_or_create(
-                    date=date,
-                    pair_number=pair,
-                    group=group,
-                    defaults={
-                        'discipline': discipline,
-                        'teacher': teacher,
-                        'topic': row.get('Тема', '')
-                    }
-                )
-                students = Group.objects.get(id=group_id).students.all()
-                for student in students:
-                    Grade.objects.get_or_create(student=student, lesson=lesson)
-                if created_flag:
+                    if not teacher:
+                        errors += 1
+                        continue
+
+                    # === ПРОВЕРКА КОНФЛИКТА ===
+                    existing_lesson = Lesson.objects.filter(
+                        date=date,
+                        pair_number=pair,
+                        group=group
+                    ).first()
+
+                    if existing_lesson:
+                        conflicts.append(
+                            f"{date} | пара {pair} | {group.name} уже занята ({existing_lesson.discipline})"
+                        )
+                        skipped += 1
+                        continue
+
+                    # === СОЗДАЕМ ЕСЛИ НЕТ ===
+                    lesson = Lesson.objects.create(
+                        date=date,
+                        pair_number=pair,
+                        group=group,
+                        discipline=discipline,
+                        teacher=teacher,
+                        topic=row.get('Тема', '')
+                    )
+
+                    # создаем оценки
+                    students = group.students.all()
+                    for student in students:
+                        Grade.objects.get_or_create(student=student, lesson=lesson)
+
                     created += 1
 
+                except Exception as e:
+                    errors += 1
+
             messages.success(request, f"Импортировано занятий: {created}")
+            if conflicts:
+                messages.warning(request, f"Пропущено (конфликты): {skipped}\n" + "\n".join(conflicts[:5]))
+            if errors:
+                messages.error(request, f"Ошибок: {errors}")
 
         except Exception as e:
-            messages.error(request, f"Ошибка: {e}")
+            messages.error(request, f"Ошибка при чтении файла: {e}")
 
         return redirect('admin_dashboard')
 
@@ -550,3 +583,170 @@ def download_template(request):
 
     wb.save(response)
     return response
+
+@login_required
+def export_semester_report(request):
+    teacher = request.user.teacher
+    semester = int(request.GET.get('semester', 1))
+
+    if semester == 1:
+        months = [9,10,11,12]
+    else:
+        months = [1,2,3,4,5,6]
+
+    lessons = Lesson.objects.filter(
+        teacher=teacher,
+        date__month__in=months
+    ).select_related('group', 'discipline')
+
+    groups = set(l.group for l in lessons)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Отчёт"
+
+    row = 1
+
+    bold = Font(bold=True)
+
+    for group in groups:
+        students = group.students.all()
+
+        for student in students:
+
+            # === Заголовок студента ===
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+            cell = ws.cell(row=row, column=1)
+            cell.value = f"{student.last_name} {student.first_name} | {group.name} | Семестр {semester}"
+            cell.font = Font(bold=True, size=14)
+            row += 1
+
+            # === Таблица ===
+            ws.cell(row=row, column=1, value="Дисциплина").font = bold
+            ws.cell(row=row, column=2, value="Средний балл").font = bold
+            row += 1
+
+            grades = Grade.objects.filter(
+                student=student,
+                lesson__group=group,
+                lesson__date__month__in=months
+            ).select_related('lesson__discipline')
+
+            by_disc = {}
+
+            for g in grades:
+                name = g.lesson.discipline.name
+                by_disc.setdefault(name, []).append(g)
+
+            total = 0
+            count = 0
+
+            for d, g_list in by_disc.items():
+                values = [int(x.value) for x in g_list if x.value.isdigit()]
+                avg = round(sum(values)/len(values), 2) if values else 0
+
+                ws.cell(row=row, column=1, value=d)
+                ws.cell(row=row, column=2, value=avg)
+
+                total += sum(values)
+                count += len(values)
+
+                row += 1
+
+            overall = round(total/count, 2) if count else 0
+
+            ws.cell(row=row, column=1, value="Общий средний").font = bold
+            ws.cell(row=row, column=2, value=overall).font = bold
+            row += 2
+
+            # === РАЗДЕЛИТЕЛЬ (чтобы резать) ===
+            for col in range(1, 5):
+                ws.cell(row=row, column=col).value = "----------------------"
+            row += 3
+
+    # ширина колонок
+    ws.column_dimensions['A'].width = 35
+    ws.column_dimensions['B'].width = 20
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=semester_report.xlsx'
+
+    wb.save(response)
+    return response
+
+@login_required
+def lesson_edit(request, lesson_id):
+    """Редактирование занятия"""
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    
+    if request.method == 'POST':
+        try:
+            lesson.discipline_id = request.POST.get('discipline')
+            lesson.group_id = request.POST.get('group')
+            lesson.teacher_id = request.POST.get('teacher')
+            lesson.date = request.POST.get('date')
+            lesson.pair_number = request.POST.get('pair_number')
+            lesson.topic = request.POST.get('topic', '')
+            lesson.save()
+            
+            messages.success(request, 'Занятие успешно обновлено')
+            return redirect('schedule_management')  # замените на ваш URL
+        
+        except IntegrityError:
+            messages.error(request, 'На эту дату и пару уже есть занятие у этой группы')
+        except Exception as e:
+            messages.error(request, f'Ошибка: {str(e)}')
+    
+    groups = Group.objects.all()
+    teachers = Teacher.objects.all()
+    disciplines = Discipline.objects.all()
+    
+    context = {
+        'lesson': lesson,
+        'groups': groups,
+        'teachers': teachers,
+        'disciplines': disciplines,
+        'title': 'Редактировать занятие',
+    }
+    return render(request, 'journal/lesson_form.html', context)
+
+@login_required
+def discipline_list(request):
+    """Список дисциплин"""
+    if not request.user.is_superuser and not request.user.is_staff:
+        return redirect('login')
+    else:
+        try:
+            teacher = Teacher.objects.get(user=request.user)
+            institution = teacher.institution
+            disciplines = Discipline.objects.filter(lesson__group__institution=institution).distinct()
+        except Teacher.DoesNotExist:
+            # Если пользователь не привязан к преподавателю, показываем все дисциплины
+            disciplines = Discipline.objects.all()
+    
+    context = {
+        'disciplines': disciplines,
+    }
+    return render(request, 'journal/discipline_list.html', context)
+
+@login_required
+def discipline_create(request):
+    """Создание новой дисциплины"""
+    if not request.user.is_superuser and not request.user.is_staff:
+        return redirect('login')
+
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        code = request.POST.get('code', '')
+
+        Discipline.objects.create(
+            name=name,
+            code=code
+        )
+        messages.success(request, 'Дисциплина успешно создана!')
+        return redirect('discipline_list')
+
+    context = {}
+    return render(request, 'journal/discipline_create.html', context)

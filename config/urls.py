@@ -7,6 +7,8 @@ from django.contrib.auth.decorators import login_required
 
 # Импорт всех views
 from journal.views import (
+    discipline_create,
+    export_semester_report,
     schedule_create,
     student_list,
     teacher_dashboard, 
@@ -23,6 +25,7 @@ from journal.views import (
     student_schedule,
     import_schedule,
     download_template,
+    discipline_list,
 )
 
 urlpatterns = [
@@ -52,11 +55,14 @@ urlpatterns = [
     path('admin-panel/groups/add/', group_create, name='group_create'),
     path('admin-panel/students/add/', student_create, name='student_create'),
     path('admin-panel/teachers/add/', teacher_create, name='teacher_create'),
+    path('admin-panel/disciplines/add/', discipline_create, name='discipline_create'),
     path('admin-panel/students/', student_list, name='student_list'),
     path('admin-panel/teachers/', teacher_list, name='teacher_list'),
+    path('admin-panel/disciplines/', discipline_list, name='discipline_list'),
     path('admin-panel/schedule/create/', schedule_create, name='schedule_create'),
     path('admin-panel/import/', import_schedule, name='import_schedule'),
     path('admin-panel/template/', download_template, name='download_template'),
     
     
+    path('export/semester/', export_semester_report, name='export_semester_report'),
 ]

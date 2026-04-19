@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Дисциплины{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Дисциплины</h1>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Код</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in disciplines %}
+            <tr>
+                <td>{{ d.name }}</td>
+                <td>{{ d.code|default:'—' }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2">Нет дисциплин</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{% url 'discipline_create' %}" class="btn btn-green">+ Добавить дисциплину</a>
+</div>
+{% endblock %}

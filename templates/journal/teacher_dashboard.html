@@ -86,5 +86,76 @@
 <a href="{% url 'teacher_dashboard_today' %}" class="btn mt-20">
     Сегодня
 </a>
+<button onclick="openExportModal()" class="btn-green mt-20" style="display: flex; align-items: center; gap: 8px;">
+    <span>📥</span> Экспорт в Excel
+</button>
 
+<!-- Модальное окно экспорта -->
+<div id="exportModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>
+                <span>📊</span> Экспорт ведомости
+            </h3>
+            <button class="modal-close" onclick="closeExportModal()">&times;</button>
+        </div>
+        
+        <form method="GET" action="{% url 'export_semester_report' %}" id="exportForm">
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Выберите семестр</label>
+                    <select name="semester" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px;">
+                        <option value="1">📘 1 семестр</option>
+                        <option value="2">📗 2 семестр</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Формат файла</label>
+                    <div style="display: flex; gap: 20px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="radio" name="format" value="xlsx" checked> Excel (.xlsx)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                            <input type="radio" name="format" value="csv"> CSV (in progress)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-gray" onclick="closeExportModal()">Отмена</button>
+                <button type="submit" class="btn-green" style="display: flex; align-items: center; gap: 6px;">
+                    <span>📥</span> Скачать
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+    function openExportModal() {
+        document.getElementById('exportModal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeExportModal() {
+        document.getElementById('exportModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    
+    // Закрытие по клику вне модального окна
+    window.onclick = function(event) {
+        const modal = document.getElementById('exportModal');
+        if (event.target === modal) {
+            closeExportModal();
+        }
+    }
+    
+    // Закрытие по Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeExportModal();
+        }
+    });
+</script>
 {% endblock %}
