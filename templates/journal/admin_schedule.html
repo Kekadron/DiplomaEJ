@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Админ — Расписание</h1>
+
+<div class="card mt-20">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <a class="nav-link" href="{% url 'admin_schedule' previous_date %}">← Предыдущий день</a>
+        <div style="font-size: 20px; font-weight: bold;">{{ date }}</div>
+        <a class="nav-link" href="{% url 'admin_schedule' next_date %}">Следующий день →</a>
+    </div>
+
+    <form method="get" id="dateForm" style="text-align: center; margin-bottom: 20px;">
+        <input 
+            type="date" 
+            id="datePicker"
+            value="{{ date|date:'Y-m-d' }}"
+            style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px;"
+        >
+    </form>
+    {% if lessons %}
+    {% regroup lessons by group as lessons_by_group %}
+    
+    {% for group in lessons_by_group %}
+        <div style="margin-bottom: 20px; padding: 20px;">
+            <h3 style="background: #f0f0f0; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 18px;">
+                📚 Группа: {{ group.grouper.name }}
+                {% if user.is_superuser %} ({{ group.grouper.institution.name }}){% endif %}
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                {% for lesson in group.list %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
+                        <div>
+                            <b style="font-size: 16px;">{{ lesson.discipline.name }}</b><br>
+                            <span style="color: #666; font-size: 14px;">Преподаватель: {{ lesson.teacher.last_name }} {{ lesson.teacher.first_name }}</span>
+                        </div>
+                        
+                        <div style="text-align: right;">
+                            <div style="font-size: 18px; font-weight: bold; color: #007bff;">
+                                Пара {{ lesson.pair_number }}
+                            </div>
+                            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                                {{ lesson.date }}
+                            </div>
+                            
+                            <div style="margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end;">
+                                <a href="{% url 'schedule_edit' lesson.id %}" class="btn" style="background: #ffc107; color: #333; padding: 5px 12px; font-size: 14px;">
+                                    ✏️ Редактировать
+                                </a>
+                                <button onclick="openDeleteModal({{ lesson.id }})" class="btn btn-red" style="padding: 5px 12px; font-size: 14px;">
+                                    ✖ Удалить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+    
+{% else %}
+    <div class="card text-center" style="color: #777; padding: 40px;">
+        Нет занятий в этот день.
+    </div>
+{% endif %}
+</div>
+
+<script>
+    document.getElementById('datePicker').addEventListener('change', function() {
+        const selectedDate = this.value;
+        window.location.href = "/admin-panel/schedule/" + selectedDate + "/";
+    });
+</script>
+
+
+<div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+    <a href="{% url 'schedule_create' %}" class="btn btn-green">+ Создать занятие</a>
+    <a href="{% url 'admin_dashboard' %}" class="btn">Назад</a>
+</div>
+
+<!-- Модальное окно удаления -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🗑️ Удалить урок?</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="deleteForm" method="post">
+            {% csrf_token %}
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить это занятие? Действие необратимо.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-gray" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-red">Удалить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openDeleteModal(id) {
+    const form = document.getElementById('deleteForm');
+    form.action = `/lesson/${id}/delete/`;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// Закрытие модального окна при клике вне его
+window.onclick = function(event) {
+    const modal = document.getElementById('deleteModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
+
+{% endblock %}

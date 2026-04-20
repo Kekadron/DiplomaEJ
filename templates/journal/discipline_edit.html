@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать дисциплину{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Редактировать дисциплину</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label>Название</label>
+        <input type="text" name="name"
+               value="{{ discipline.name }}"
+               style="width:100%; padding:12px; margin-bottom:15px;">
+
+        <label>Код дисциплины</label>
+        <input type="text" name="code"
+               value="{{ discipline.code }}"
+               style="width:100%; padding:12px; margin-bottom:20px;">
+
+        <button type="submit" class="btn">
+            Сохранить
+        </button>
+    </form>
+</div>
+
+{% endblock %}

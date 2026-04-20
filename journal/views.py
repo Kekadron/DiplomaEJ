@@ -48,7 +48,6 @@ def teacher_dashboard(request, date=None):
 
     return render(request, 'journal/teacher_dashboard.html', context)
 
-
 @login_required
 def lesson_grades(request, lesson_id):
     """Просмотр и редактирование журнала оценок по занятию"""
@@ -100,58 +99,6 @@ def lesson_grades(request, lesson_id):
     return render(request, 'journal/lesson_grades.html', context)
 
 @login_required
-def lesson_new(request):
-    """Форма создания нового занятия с автоматическим созданием записей оценок"""
-    try:
-        teacher = Teacher.objects.get(user=request.user)
-    except Teacher.DoesNotExist:
-        messages.error(request, "У вас нет прав преподавателя")
-        return redirect('login')
-
-    if request.method == 'POST':
-        discipline_id = request.POST.get('discipline')
-        group_id = request.POST.get('group')
-        date_str = request.POST.get('date')
-        topic = request.POST.get('topic', '')
-
-        try:
-            lesson = Lesson.objects.create(
-                discipline_id=discipline_id,
-                group_id=group_id,
-                teacher=teacher,
-                date=date_str,
-                topic=topic
-            )
-
-            # === АВТОМАТИЧЕСКОЕ СОЗДАНИЕ ЗАПИСЕЙ GRADE ДЛЯ ВСЕХ СТУДЕНТОВ ===
-            group = lesson.group
-            students = group.students.all()
-
-            for student in students:
-                Grade.objects.get_or_create(
-                    student=student,
-                    lesson=lesson,
-                    defaults={'value': '', 'comment': ''}
-                )
-
-            messages.success(request, f'Занятие "{lesson.discipline} — {lesson.date}" успешно создано! Добавлено {students.count()} студентов.')
-            return redirect('lesson_grades', lesson_id=lesson.id)
-
-        except Exception as e:
-            messages.error(request, f"Ошибка создания занятия: {e}")
-            return redirect('lesson_new')
-
-    disciplines = Discipline.objects.all()
-    groups = Group.objects.all()
-
-    context = {
-        'teacher': teacher,
-        'disciplines': disciplines,
-        'groups': groups,
-    }
-    return render(request, 'journal/lesson_new.html', context)
-
-@login_required
 def admin_dashboard(request):
     """Панель администратора / Завуча"""
     if not (request.user.is_superuser or request.user.is_staff):
@@ -172,7 +119,7 @@ def admin_dashboard(request):
         total_groups = Group.objects.filter(institution=institution).count()
         total_students = Student.objects.filter(group__institution=institution).count()
         total_teachers = Teacher.objects.filter(institution=institution).count()
-        total_disciplines = Discipline.objects.filter(lesson__group__institution=institution).distinct().count()
+        total_disciplines = Discipline.objects.filter(institution=institution).count()
 
     context = {
         'total_institutions': total_institutions,
@@ -183,8 +130,6 @@ def admin_dashboard(request):
         'is_superuser': request.user.is_superuser,   # передаём в шаблон
     }
     return render(request, 'journal/admin_dashboard.html', context)
-
-
 
 @login_required
 def group_list(request):
@@ -200,8 +145,6 @@ def group_list(request):
     context = {'groups': groups}
     return render(request, 'journal/group_list.html', context)
 
-
-
 @login_required
 def group_create(request):
     """Создание новой группы"""
@@ -209,10 +152,29 @@ def group_create(request):
         return redirect('login')
 
     if request.method == 'POST':
-        institution_id = request.POST.get('institution')
         name = request.POST.get('name')
         specialty = request.POST.get('specialty')
         start_year = request.POST.get('start_year')
+        
+        # Определяем institution_id
+        if request.user.is_superuser:
+            institution_id = request.POST.get('institution')
+        else:
+            try:
+                teacher = Teacher.objects.get(user=request.user)
+                institution_id = teacher.institution.id
+            except Teacher.DoesNotExist:
+                messages.error(request, 'У вас не привязано учебное заведение')
+                return redirect('group_list')
+
+        # Проверка на пустые значения
+        if not name or not specialty or not start_year:
+            messages.error(request, 'Заполните все поля')
+            return redirect('group_create') 
+        
+        if not institution_id:
+            messages.error(request, 'Не указано учебное заведение')
+            return redirect('group_create')
 
         Group.objects.create(
             institution_id=institution_id,
@@ -224,8 +186,45 @@ def group_create(request):
         return redirect('group_list')
 
     institutions = Institution.objects.all()
-    context = {'institutions': institutions}
+    context = {
+        'institutions': institutions,
+        'is_superuser': request.user.is_superuser,
+    }
+    
+    if not request.user.is_superuser:
+        try:
+            teacher = Teacher.objects.get(user=request.user)
+            context['teacher'] = teacher
+        except Teacher.DoesNotExist:
+            pass
+    
     return render(request, 'journal/group_create.html', context)
+
+@login_required
+def group_edit(request, pk):
+    if not request.user.is_staff:
+        return redirect('student_schedule')
+
+    group = Group.objects.get(id=pk)
+    institutions = Institution.objects.all()
+
+    if request.method == "POST":
+        group.name = request.POST.get("name")
+        group.specialty = request.POST.get("specialty")
+        group.start_year = request.POST.get("start_year")
+        group.institution_id = request.POST.get("institution")
+        group.save()
+        return redirect('group_list')
+
+    return render(request, "journal/group_edit.html", {
+        "group": group,
+        "institutions": institutions
+    })
+
+@login_required
+def group_delete(request, pk):
+    Group.objects.get(id=pk).delete()
+    return redirect('group_list')
 
 def home_redirect(request):
     """Самая простая версия для диагностики"""
@@ -271,12 +270,57 @@ def student_create(request):
             student_id=student_id
         )
         messages.success(request, 'Студент успешно создан!')
-        return redirect('group_list')  # или куда захочешь
+        return redirect('admin_dashboard')
 
-    groups = Group.objects.all()
+    if request.user.is_superuser:
+        # Суперпользователь видит все группы
+        groups = Group.objects.all()
+    else:
+        teacher = Teacher.objects.get(user=request.user)
+        groups = Group.objects.filter(institution=teacher.institution)
     context = {'groups': groups}
     return render(request, 'journal/student_create.html', context)
 
+@login_required
+def student_edit(request, student_id):
+    """Редактирование данных студента"""
+    if not request.user.is_superuser and not request.user.is_staff:
+        return redirect('login')
+
+    student = get_object_or_404(Student, id=student_id)
+
+    if request.method == 'POST':
+        student.last_name = request.POST.get('last_name')
+        student.first_name = request.POST.get('first_name')
+        student.middle_name = request.POST.get('middle_name', '')
+        student.student_id = request.POST.get('student_id')
+        student.group_id = request.POST.get('group')
+        student.save()
+        messages.success(request, 'Данные студента успешно обновлены!')
+        return redirect('admin_dashboard')
+
+    if request.user.is_superuser:
+        groups = Group.objects.all()
+    else:
+        teacher = Teacher.objects.get(user=request.user)
+        groups = Group.objects.filter(institution=teacher.institution)
+    
+    context = {
+        'student': student,
+        'groups': groups,
+    }
+    return render(request, 'journal/student_edit.html', context)
+
+@login_required
+def student_delete(request, student_id):
+    """Удаление студента"""
+    if not request.user.is_superuser and not request.user.is_staff:
+        return redirect('login')
+
+    student = get_object_or_404(Student, id=student_id)
+    student.delete()
+    messages.success(request, 'Студент успешно удалён!')
+    return redirect('admin_dashboard')
 
 @login_required
 def teacher_create(request):
@@ -295,7 +339,7 @@ def teacher_create(request):
         institution_id = request.POST.get('institution')
 
         user = User.objects.create_user(username=username, password=password)
-        user.is_staff = True
+        user.is_staff = False  # по умолчанию — не админ
         user.save()
 
         Teacher.objects.create(
@@ -309,9 +353,47 @@ def teacher_create(request):
         messages.success(request, 'Преподаватель успешно создан!')
         return redirect('admin_dashboard')
 
-    institutions = Institution.objects.all()
+    if request.user.is_superuser:
+        # Суперпользователь видит все группы
+        institutions = Institution.objects.all()
+    else:
+        teacher = Teacher.objects.get(user=request.user)
+        institutions = Institution.objects.filter(id=teacher.institution.id)
     context = {'institutions': institutions}
     return render(request, 'journal/teacher_create.html', context)
+
+@login_required
+def teacher_edit(request, teacher_id):
+    if not request.user.is_superuser and not request.user.is_staff:
+        return redirect('login')
+
+    teacher = Teacher.objects.get(id=teacher_id)
+
+    if request.method == 'POST':
+        teacher.last_name = request.POST.get('last_name')
+        teacher.first_name = request.POST.get('first_name')
+        teacher.middle_name = request.POST.get('middle_name', '')
+        teacher.phone = request.POST.get('phone', '')
+        teacher.save()
+        messages.success(request, 'Данные преподавателя успешно обновлены!')
+        return redirect('teacher_list')
+
+    context = {
+        'teacher': teacher,
+    }
+    return render(request, 'journal/teacher_edit.html', context)
+
+@login_required
+def teacher_delete(request, teacher_id):
+    if not request.user.is_superuser and not request.user.is_staff:
+        return redirect('login')
+
+    teacher = Teacher.objects.get(id=teacher_id)
+    user = teacher.user
+    teacher.delete()
+    user.delete()  # удаляем связанный аккаунт
+    messages.success(request, 'Преподаватель успешно удалён!')
+    return redirect('teacher_list')
 
 @staff_member_required
 def protected_admin(request):
@@ -329,7 +411,6 @@ def student_list(request):
 
     context = {'students': students}
     return render(request, 'journal/student_list.html', context)
-
 
 @login_required
 def teacher_list(request):
@@ -428,9 +509,15 @@ def schedule_create(request):
         return redirect('admin_dashboard')
 
     # Формируем данные для формы
-    disciplines = Discipline.objects.all()
+    if request.user.is_superuser:
+        disciplines = Discipline.objects.all()
+    else:
+        disciplines = Discipline.objects.filter(institution__in=institutions)
     groups = Group.objects.filter(institution__in=institutions)
-    teachers = Teacher.objects.filter(institution__in=institutions)
+    teachers = Teacher.objects.filter(
+        institution__in=institutions,
+        user__is_staff=False  # исключаем сотрудников (завучей, админов)
+    )
 
     context = {
         'disciplines': disciplines,
@@ -439,6 +526,54 @@ def schedule_create(request):
         'institutions': institutions,
     }
     return render(request, 'journal/schedule_create.html', context)
+
+@login_required
+def schedule_edit(request, lesson_id):
+    """Редактирование занятия"""
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Доступ запрещён.")
+        return redirect('login')
+
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+
+    # Определяем заведение завуча
+    if request.user.is_superuser:
+        institutions = Institution.objects.all()
+    else:
+        teacher = Teacher.objects.get(user=request.user)
+        institutions = Institution.objects.filter(id=teacher.institution.id)
+
+    if request.method == 'POST':
+        lesson.discipline_id = request.POST.get('discipline')
+        lesson.group_id = request.POST.get('group')
+        lesson.teacher_id = request.POST.get('teacher')
+        lesson.date = request.POST.get('date')
+        lesson.pair_number = request.POST.get('pair_number')
+        lesson.topic = request.POST.get('topic', '')
+        lesson.save()
+
+        messages.success(request, f'Занятие "{lesson.discipline}" на {lesson.date} успешно обновлено!')
+        return redirect('admin_dashboard')
+
+    # Формируем данные для формы
+    if request.user.is_superuser:
+        disciplines = Discipline.objects.all()
+    else:
+        disciplines = Discipline.objects.filter(institution__in=institutions)
+    groups = Group.objects.filter(institution__in=institutions)
+    teachers = Teacher.objects.filter(
+        institution__in=institutions,
+        user__is_staff=False  # исключаем сотрудников (завучей, админов)
+    )
+
+    context = {
+        'lesson': lesson,
+        'disciplines': disciplines,
+        'groups': groups,
+        'teachers': teachers,
+        'institutions': institutions,
+    }
+    return render(request, 'journal/schedule_edit.html', context)
 
 @login_required
 def student_schedule(request, date=None):
@@ -676,55 +811,44 @@ def export_semester_report(request):
     wb.save(response)
     return response
 
-@login_required
-def lesson_edit(request, lesson_id):
-    """Редактирование занятия"""
-    lesson = get_object_or_404(Lesson, id=lesson_id)
-    
-    if request.method == 'POST':
-        try:
-            lesson.discipline_id = request.POST.get('discipline')
-            lesson.group_id = request.POST.get('group')
-            lesson.teacher_id = request.POST.get('teacher')
-            lesson.date = request.POST.get('date')
-            lesson.pair_number = request.POST.get('pair_number')
-            lesson.topic = request.POST.get('topic', '')
-            lesson.save()
-            
-            messages.success(request, 'Занятие успешно обновлено')
-            return redirect('schedule_management')  # замените на ваш URL
-        
-        except IntegrityError:
-            messages.error(request, 'На эту дату и пару уже есть занятие у этой группы')
-        except Exception as e:
-            messages.error(request, f'Ошибка: {str(e)}')
-    
-    groups = Group.objects.all()
-    teachers = Teacher.objects.all()
+
+    lesson = Lesson.objects.get(id=lesson_id)
+
     disciplines = Discipline.objects.all()
-    
-    context = {
-        'lesson': lesson,
-        'groups': groups,
-        'teachers': teachers,
-        'disciplines': disciplines,
-        'title': 'Редактировать занятие',
-    }
-    return render(request, 'journal/lesson_form.html', context)
+    groups = Group.objects.all()
+
+    if request.method == "POST":
+        lesson.discipline_id = request.POST.get("discipline")
+        lesson.group_id = request.POST.get("group")
+        lesson.date = request.POST.get("date")
+        lesson.topic = request.POST.get("topic")
+
+        lesson.save()
+
+        return redirect("admin_dashboard")  # или куда тебе нужно
+
+    return render(request, "journal/edit_lesson.html", {
+        "lesson": lesson,
+        "disciplines": disciplines,
+        "groups": groups
+    })
 
 @login_required
 def discipline_list(request):
     """Список дисциплин"""
     if not request.user.is_superuser and not request.user.is_staff:
         return redirect('login')
+    
+    if request.user.is_superuser:
+        # Суперпользователь видит все дисциплины
+        disciplines = Discipline.objects.all()
     else:
         try:
             teacher = Teacher.objects.get(user=request.user)
-            institution = teacher.institution
-            disciplines = Discipline.objects.filter(lesson__group__institution=institution).distinct()
+            disciplines = Discipline.objects.filter(institution=teacher.institution)
         except Teacher.DoesNotExist:
-            # Если пользователь не привязан к преподавателю, показываем все дисциплины
-            disciplines = Discipline.objects.all()
+            disciplines = Discipline.objects.none()
+            messages.warning(request, 'Профиль преподавателя не найден')
     
     context = {
         'disciplines': disciplines,
@@ -740,13 +864,121 @@ def discipline_create(request):
     if request.method == 'POST':
         name = request.POST.get('name')
         code = request.POST.get('code', '')
-
+        
+        # Определяем учебное заведение
+        if request.user.is_superuser:
+            institution_id = request.POST.get('institution')
+            if not institution_id:
+                messages.error(request, 'Выберите учебное заведение')
+                institutions = Institution.objects.all()
+                return render(request, 'journal/discipline_create.html', {'institutions': institutions})
+            institution = get_object_or_404(Institution, id=institution_id)
+        else:
+            try:
+                teacher = Teacher.objects.get(user=request.user)
+                institution = teacher.institution
+            except Teacher.DoesNotExist:
+                messages.error(request, 'Профиль преподавателя не найден')
+                return redirect('discipline_list')
+        
+        # Проверка на существование такой дисциплины в этом заведении
+        if Discipline.objects.filter(name=name, institution=institution).exists():
+            messages.error(request, f'Дисциплина "{name}" уже существует в вашем учебном заведении!')
+            return redirect('discipline_create')
+        
+        # Создаём дисциплину
         Discipline.objects.create(
             name=name,
-            code=code
+            code=code,
+            institution=institution
         )
         messages.success(request, 'Дисциплина успешно создана!')
         return redirect('discipline_list')
 
+    # GET запрос
     context = {}
+    if request.user.is_superuser:
+        context['institutions'] = Institution.objects.all()
+    
     return render(request, 'journal/discipline_create.html', context)
+
+@login_required
+def discipline_edit(request, pk):
+    discipline = Discipline.objects.get(id=pk)
+
+    if request.method == "POST":
+        discipline.name = request.POST.get("name")
+        discipline.code = request.POST.get("code")
+        discipline.save()
+        return redirect('discipline_list')
+
+    return render(request, 'journal/discipline_edit.html', {
+        'discipline': discipline
+    })
+    
+@login_required
+def discipline_delete(request, pk):
+    Discipline.objects.get(id=pk).delete()
+    return redirect('discipline_list')
+
+@login_required
+def admin_schedule(request, date=None):
+    """Расписание для администратора/завуча"""
+    # проверка прав
+    if not request.user.is_staff:
+        return redirect('student_schedule')
+
+    # дата
+    if date:
+        try:
+            current_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except:
+            current_date = datetime.today().date()
+    else:
+        current_date = datetime.today().date()
+
+    previous_date = (current_date - timedelta(days=1)).strftime("%Y-%m-%d")
+    next_date = (current_date + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # Базовый запрос
+    lessons = Lesson.objects.filter(date=current_date)
+    
+    # Фильтрация по правам пользователя
+    if request.user.is_superuser:
+        # Суперпользователь видит все уроки
+        lessons = lessons.select_related('discipline', 'teacher', 'group', 'group__institution')
+    else:
+        # Завуч (staff) видит только уроки своего учебного заведения
+        try:
+            teacher = Teacher.objects.get(user=request.user)
+            lessons = lessons.filter(
+                group__institution=teacher.institution
+            ).select_related('discipline', 'teacher', 'group', 'group__institution')
+        except Teacher.DoesNotExist:
+            lessons = Lesson.objects.none()
+            messages.warning(request, 'Ваш профиль не связан с учебным заведением')
+    
+    # Сортировка для правильной группировки
+    lessons = lessons.order_by('group__name', 'pair_number')
+    
+    context = {
+        'lessons': lessons,
+        'date': current_date,
+        'previous_date': previous_date,
+        'next_date': next_date,
+        'is_superuser': request.user.is_superuser,
+    }
+    return render(request, 'journal/admin_schedule.html', context)
+    
+@login_required
+def delete_lesson(request, lesson_id):
+    if not request.user.is_staff:
+        return redirect('student_schedule')
+
+    lesson = Lesson.objects.get(id=lesson_id)
+
+    if request.method == "POST":
+        lesson.delete()
+        return redirect('admin_schedule')
+
+

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать преподавателя{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Редактировать преподавателя</h1>
+
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+        
+        {%if is_superuser%}
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Учебное заведение</label>
+        <select name="institution" required style="width:100%; padding:12px; value={{ group.institution.id }} margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}" {% if inst.id == group.institution.id %}selected{% endif %}>
+                {{ inst.name }} ({{ inst.short_name }})
+            </option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <input type="hidden" name="institution" value="{{ group.institution.id }}">
+        {% endif %}
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Фамилия</label>
+        <input type="text" name="last_name" value="{{ teacher.last_name }}" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Имя</label>
+        <input type="text" name="first_name" value="{{ teacher.first_name }}" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Отчество</label>
+        <input type="text" name="middle_name" value="{{ teacher.middle_name|default:'' }}" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Телефон</label>
+        <input type="text" name="phone" value="{{ teacher.phone }}" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+
+        <button type="submit" class="btn btn-green">Сохранить изменения</button>
+    </form>
+</div>
+{% endblock %}

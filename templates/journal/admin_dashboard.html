@@ -32,13 +32,17 @@
         <a href="{% url 'discipline_list' %}" class="btn">Открыть</a>
     </div>
 
+    <div class="card text-center">
+        <h3>Расписание</h3>
+        <h2>{{ total_lessons|default:"📅" }}</h2>
+        <a href="{% url 'admin_schedule' %}" class="btn">Открыть</a>
+    </div>
+
 </div>
 
-<div class="mt-30">
+<div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
     <a href="{% url 'schedule_create' %}" class="btn btn-green">+ Создать занятие</a>
-    <button onclick="openImportModal()" class="btn-green" style="background: #6f42c1;">
-    Импорт из Excel
-</button>
+    <button onclick="openImportModal()" class="btn" style="background: #6f42c1;">📊 Импорт из Excel</button>
 </div>
 
 {% if is_superuser %}
@@ -47,29 +51,24 @@
 </div>
 {% endif %}
 
-<!-- модальное окно -->
-<div id="importModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
-    
-    <div style="background:white; padding:30px; border-radius:12px; width:400px;">
-        <h3 style="margin-bottom:20px;">Импорт расписания</h3>
-
+<!-- Модальное окно импорта -->
+<div id="importModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>📥 Импорт расписания</h3>
+            <button class="modal-close" onclick="closeImportModal()">&times;</button>
+        </div>
         <form method="post" action="{% url 'import_schedule' %}" enctype="multipart/form-data">
             {% csrf_token %}
-
-            <input type="file" name="file" accept=".xlsx" required style="margin-bottom:20px;">
-
-            <div style="display:flex; gap:10px;">
-                <button type="submit" class="btn-green">Загрузить</button>
-                
-                <a href="{% url 'download_template' %}" class="btn">
-                    Скачать шаблон
-                </a>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: #666;">Выберите Excel-файл с расписанием для импорта.</p>
+                <input type="file" name="file" accept=".xlsx" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px;">
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'download_template' %}" class="btn" style="background: #6c757d; text-decoration: none;">📎 Скачать шаблон</a>
+                <button type="submit" class="btn btn-green">Загрузить</button>
             </div>
         </form>
-
-        <button onclick="closeImportModal()" class="btn btn-red" style="margin-top:10px;">
-            Закрыть
-        </button>
     </div>
 </div>
 

@@ -10,14 +10,16 @@
 
     <form method="post">
         {% csrf_token %}
-        
+        {% if is_superuser %}
         <label style="display:block; margin:15px 0 5px; font-weight:bold;">Учебное заведение</label>
         <select name="institution" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
             {% for inst in institutions %}
             <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.short_name }})</option>
             {% endfor %}
         </select>
-
+        {% else %}
+        <input type="hidden" name="institution" value="{{ teacher.institution.id }}">
+        {% endif %}
         <label style="display:block; margin:15px 0 5px; font-weight:bold;">Название группы</label>
         <input type="text" name="name" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
 

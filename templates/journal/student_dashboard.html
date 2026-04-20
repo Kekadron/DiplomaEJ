@@ -38,18 +38,30 @@
             </div>
         </div>
 
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px;">
+        <div style="display: flex; flex-wrap: wrap; margin-top: 5px;">
             {% for grade in grades_list %}
-                <span style="padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 14px;
-                    {% if grade.value == '5' %}background: #28a745; color: white;
-                    {% elif grade.value == '4' %}background: #17a2b8; color: white;
-                    {% elif grade.value == '3' %}background: #ffc107; color: black;
-                    {% elif grade.value == '2' %}background: #dc3545; color: white;
-                    {% elif grade.value == 'Зач' %}background: #6c757d; color: white;
-                    {% elif grade.value == 'Н' %}background: #f8d7da; color: #721c24;
-                    {% else %}background: #e9ecef; color: #6c757d;{% endif %}">
-                    {{ grade.value|default:'—' }}
-                </span>
+            <div style="display:flex; flex-direction:column; align-items:center; min-width:40px;">
+
+                <!-- ДАТА -->
+            <div style="font-size:11px;">
+                {{ grade.lesson.date|date:"d.m" }}
+            </div>
+
+                <!-- ОЦЕНКА -->
+            <span
+                style="padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 14px;
+                {% if grade.value == '5' %}background: #28a745; color: white;
+                {% elif grade.value == '4' %}background: #17a2b8; color: white;
+                {% elif grade.value == '3' %}background: #ffc107; color: black;
+                {% elif grade.value == '2' %}background: #dc3545; color: white;
+                {% elif grade.value == 'зач' %}background: #6c757d; color: white;
+                {% elif grade.value == 'н/зач' %}background: #495057; color: white;
+                {% else %}background: #e9ecef; color: #6c757d;{% endif %}">
+            
+                {{ grade.value|default:'—' }}
+            </span>
+
+            </div>
             {% endfor %}
         </div>
         

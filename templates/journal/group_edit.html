@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать группу{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Редактировать группу</h1>
+    
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+        {%if is_superuser%}
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Учебное заведение</label>
+        <select name="institution" required style="width:100%; padding:12px; value={{ group.institution.id }} margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}" {% if inst.id == group.institution.id %}selected{% endif %}>
+                {{ inst.name }} ({{ inst.short_name }})
+            </option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <input type="hidden" name="institution" value="{{ group.institution.id }}">
+        {% endif %}
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Название группы</label>
+        <input type="text" name="name" value="{{ group.name }}" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Специальность</label>
+        <input type="text" name="specialty" value="{{ group.specialty }}" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Год начала обучения</label>
+        <input type="number" name="start_year" value="{{ group.start_year }}" required style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+
+        <button type="submit" class="btn">Сохранить изменения</button>
+    </form>
+</div>
+{% endblock %}

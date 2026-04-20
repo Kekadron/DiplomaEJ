@@ -5,38 +5,49 @@
 {% block content %}
 <div class="card">
     <h1>Создать новое занятие</h1>
+    
     <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
 
     <form method="post">
         {% csrf_token %}
 
-        {% if institutions|length > 1 %}
+        {% if institutions|length > 1 and user.is_superuser%}
         <label>Учебное заведение</label>
         <select name="institution" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
             {% for inst in institutions %}
             <option value="{{ inst.id }}">{{ inst.name }}</option>
             {% endfor %}
         </select>
+        {% else %}
+        <input type="hidden" name="institution" value="{{ teacher.institution.id }}">
         {% endif %}
 
         <label>Дисциплина</label>
         <select name="discipline" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
             {% for d in disciplines %}
-            <option value="{{ d.id }}">{{ d.name }}</option>
+            <option value="{{ d.id }}">{{ d.name }} 
+                {%if user.is_superuser%}
+                ({{ d.institution.name }})
+                {%endif%}
+            </option>
             {% endfor %}
         </select>
 
         <label>Группа</label>
         <select name="group" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
             {% for g in groups %}
-            <option value="{{ g.id }}">{{ g.name }} ({{ g.specialty }})</option>
+            <option value="{{ g.id }}">{{ g.name }} ({{ g.specialty }}) {%if user.is_superuser%}
+                ({{ g.institution.name }})
+                {%endif%}</option>
             {% endfor %}
         </select>
 
         <label>Преподаватель</label>
         <select name="teacher" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
             {% for t in teachers %}
-            <option value="{{ t.id }}">{{ t.last_name }} {{ t.first_name }}</option>
+            <option value="{{ t.id }}">{{ t.last_name }} {{ t.first_name }} {%if user.is_superuser%}
+                ({{ t.institution.name }})
+                {%endif%}</option>
             {% endfor %}
         </select>
 
@@ -52,6 +63,9 @@
             <option value="4">4 пара</option>
             <option value="5">5 пара</option>
             <option value="6">6 пара</option>
+            <option value="7">7 пара</option>
+            <option value="8">8 пара</option>
+            <option value="9">9 пара</option>
         </select>
 
         <label>Тема занятия</label>

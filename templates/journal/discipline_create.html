@@ -5,8 +5,21 @@
 {% block content %}
     <div class="card">
     <h2>Создать дисциплину</h2>
+
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+    
     <form method="post">
         {% csrf_token %}
+        {% if request.user.is_superuser %}
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Учебное заведение</label>
+        <select name="institution" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}">{{ inst.name }} ({{ inst.short_name }})</option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <input type="hidden" name="institution" value="{{ teacher.institution.id }}">
+        {% endif %}
         <label style="display:block; margin:15px 0 5px; font-weight:bold;">Название</label>
         <input type="text" name="name" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
 

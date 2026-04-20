@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать студента{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Редактировать студента</h1>
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+        
+       <label style="display:block; margin:15px 0 5px; font-weight:bold;">Группа</label>
+        <select name="group" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for group in groups %}
+            <option value="{{ group.id }}">{{ group.name }} ({{ group.institution.short_name }})</option>
+            {% endfor %}
+        </select>
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Фамилия</label>
+        <input type="text" name="last_name" value="{{ student.last_name }}" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Имя</label>
+        <input type="text" name="first_name" value="{{ student.first_name }}" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Отчество</label>
+        <input type="text" name="middle_name" value="{{ student.middle_name }}" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+
+        <label style="display:block; margin:15px 0 5px; font-weight:bold;">Номер студенческого</label>
+        <input type="text" name="student_id" value="{{ student.student_id }}" required style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+
+        <button type="submit" class="btn btn-green">Сохранить изменения</button>
+    </form>
+</div>
+{% endblock %}

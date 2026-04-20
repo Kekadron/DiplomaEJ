@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать занятие{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Редактировать занятие</h1>
+    
+    <p><a href="/admin-panel/" class="nav-link">← Назад в панель администратора</a></p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if institutions|length > 1 and user.is_superuser%}
+        <label>Учебное заведение</label>
+        <select name="institution" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for inst in institutions %}
+            <option value="{{ inst.id }}">{{ inst.name }}</option>
+            {% endfor %}
+        </select>
+        {% else %}
+        <input type="hidden" name="institution" value="{{ teacher.institution.id }}">
+        {% endif %}
+
+        <label>Дисциплина</label>
+        <select name="discipline" required value="{{ lesson.discipline.id }}" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for d in disciplines %}
+            <option value="{{ d.id }}">{{ d.name }} 
+                {%if user.is_superuser%}
+                ({{ d.institution.name }})
+                {%endif%}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label>Группа</label>
+        <select name="group" required value="{{ lesson.group.id }}" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for g in groups %}
+            <option value="{{ g.id }}">{{ g.name }} ({{ g.specialty }})</option>
+            {% endfor %}
+        </select>
+
+        <label>Преподаватель</label>
+        <select name="teacher" required value="{{ lesson.teacher.id }}" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            {% for t in teachers %}
+            <option value="{{ t.id }}">{{ t.last_name }} {{ t.first_name }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Дата занятия</label>
+        <input type="date" name="date" required value="{{ lesson.date|date:'Y-m-d' }}" style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+        
+        <label>Номер пары</label>
+        <select name="pair_number" required style="width:100%; padding:12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px;">
+            <option value="">Выберите номер пары</option>
+            <option value="1" {% if lesson.pair_number == 1 %}selected{% endif %}>1 пара</option>
+            <option value="2" {% if lesson.pair_number == 2 %}selected{% endif %}>2 пара</option>
+            <option value="3" {% if lesson.pair_number == 3 %}selected{% endif %}>3 пара</option>
+            <option value="4" {% if lesson.pair_number == 4 %}selected{% endif %}>4 пара</option>
+            <option value="5" {% if lesson.pair_number == 5 %}selected{% endif %}>5 пара</option>
+            <option value="6" {% if lesson.pair_number == 6 %}selected{% endif %}>6 пара</option>
+            <option value="7" {% if lesson.pair_number == 7 %}selected{% endif %}>7 пара</option>
+            <option value="8" {% if lesson.pair_number == 8 %}selected{% endif %}>8 пара</option>
+            <option value="9" {% if lesson.pair_number == 9 %}selected{% endif %}>9 пара</option>
+        </select>
+
+        <label>Тема занятия</label>
+        <input type="text" name="topic" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:6px;">
+
+        <button type="submit" class="btn btn-green">Сохранить изменения</button>
+    </form>
+</div>
+{% endblock %}

@@ -3,13 +3,18 @@
 {% block title %}Дисциплины{% endblock %}
 
 {% block content %}
+<h1>Дисциплины</h1>
+
 <div class="card">
-    <h1>Дисциплины</h1>
     <table class="table">
         <thead>
             <tr>
                 <th>Название</th>
                 <th>Код</th>
+                {% if request.user.is_superuser %}
+                <th>Учебное заведение</th>
+                {% endif %}
+                <th>Действия</th>
             </tr>
         </thead>
         <tbody>
@@ -17,13 +22,61 @@
             <tr>
                 <td>{{ d.name }}</td>
                 <td>{{ d.code|default:'—' }}</td>
+                {% if request.user.is_superuser %}
+                <td>{{ d.institution.name }}</td>
+                {% endif %}
+                <td>
+                    <a href="{% url 'discipline_edit' d.id %}" class="btn" style="font-size:14px;">Редактировать</a>
+                    <button onclick="openDeleteModal({{ d.id }})"class="btn btn-red">✖ удалить</button>
+                </td>
             </tr>
             {% empty %}
             <tr><td colspan="2">Нет дисциплин</td></tr>
             {% endfor %}
         </tbody>
     </table>
-
-    <a href="{% url 'discipline_create' %}" class="btn btn-green">+ Добавить дисциплину</a>
 </div>
+<a href="{% url 'discipline_create' %}" class="btn btn-green">+ Добавить дисциплину</a>
+<a href="{% url 'admin_dashboard' %}" class="btn" style="margin-top:20px;">Назад</a>
+
+
+<!-- Модальное окно удаления -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🗑️ Удалить урок?</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="deleteForm" method="post">
+            {% csrf_token %}
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить это занятие? Действие необратимо.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-gray" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-red">Удалить</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function openDeleteModal(id) {
+    const form = document.getElementById('deleteForm');
+    form.action = `/discipline/${id}/delete/`;
+
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// Закрытие модального окна при клике вне его
+window.onclick = function(event) {
+    const modal = document.getElementById('deleteModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}
