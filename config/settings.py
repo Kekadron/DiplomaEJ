@@ -82,6 +82,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://diplomaej-diplomaej.amvera.io',
+    'http://diplomaej-diplomaej.amvera.io',  # если используете http
+]
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
