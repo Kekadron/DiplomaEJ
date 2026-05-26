@@ -5,10 +5,7 @@ meta:
     version: "3.13"
 build:
   requirementsPath: requirements.txt
-  prebuild:
-    - python manage.py makemigrations
-    - python manage.py migrate
 run:
   persistenceMount: /data
   containerPort: 80
-  command: gunicorn config.wsgi:application --bind 0.0.0.0:80
+  command: python manage.py migrate && gunicorn config.wsgi:application --bind 0.0.0.0:80
