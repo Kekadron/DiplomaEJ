@@ -5,7 +5,10 @@ meta:
     version: "3.13"
 build:
   requirementsPath: requirements.txt
+  # Добавляем команды миграций БД
+  - python manage.py makemigrations
+  - python manage.py migrate
 run:
   persistenceMount: /data
   containerPort: 80
-  command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput 
+  command: gunicorn config.wsgi:application --bind 0.0.0.0:80
