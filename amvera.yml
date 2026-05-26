@@ -6,8 +6,7 @@ meta:
 build:
   requirementsPath: requirements.txt
   # Добавляем команды миграций БД
-  - python manage.py makemigrations
-  - python manage.py migrate
+  
 run:
   persistenceMount: /data
   containerPort: 80
