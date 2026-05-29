@@ -4,50 +4,117 @@
 
 {% block content %}
 
-<h1>Панель администратора</h1>
+<h1>📋 Панель администратора</h1>
 
-<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px;" class="mt-20">
+<!-- Статистика -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;" class="mt-20">
 
-    <div class="card text-center">
+    <div class="card text-center" style="border-top: 4px solid #007bff;">
+        <div style="font-size: 32px; margin-bottom: 5px;">👥</div>
         <h3>Группы</h3>
         <h2>{{ total_groups }}</h2>
-        <a href="{% url 'group_list' %}" class="btn">Открыть</a>
+        <a href="{% url 'group_list' %}" class="btn" style="margin-top: 5px;">Управление</a>
     </div>
 
-    <div class="card text-center">
+    <div class="card text-center" style="border-top: 4px solid #28a745;">
+        <div style="font-size: 32px; margin-bottom: 5px;">👨‍🎓</div>
         <h3>Студенты</h3>
         <h2>{{ total_students }}</h2>
-        <a href="{% url 'student_list' %}" class="btn">Открыть</a>
+        <a href="{% url 'student_list' %}" class="btn btn-green" style="margin-top: 5px;">Управление</a>
     </div>
 
-    <div class="card text-center">
+    <div class="card text-center" style="border-top: 4px solid #17a2b8;">
+        <div style="font-size: 32px; margin-bottom: 5px;">👩‍🏫</div>
         <h3>Преподаватели</h3>
         <h2>{{ total_teachers }}</h2>
-        <a href="{% url 'teacher_list' %}" class="btn">Открыть</a>
+        <a href="{% url 'teacher_list' %}" class="btn" style="background:#17a2b8; margin-top: 5px;">Управление</a>
     </div>
 
-    <div class="card text-center">
+    <div class="card text-center" style="border-top: 4px solid #ffc107;">
+        <div style="font-size: 32px; margin-bottom: 5px;">📚</div>
         <h3>Дисциплины</h3>
         <h2>{{ total_disciplines }}</h2>
-        <a href="{% url 'discipline_list' %}" class="btn">Открыть</a>
+        <a href="{% url 'discipline_list' %}" class="btn" style="background:#ffc107; color:#333; margin-top: 5px;">Управление</a>
     </div>
 
-    <div class="card text-center">
-        <h3>Расписание</h3>
-        <h2>{{ total_lessons|default:"📅" }}</h2>
-        <a href="{% url 'admin_schedule' %}" class="btn">Открыть</a>
+    <div class="card text-center" style="border-top: 4px solid #6f42c1;">
+        <div style="font-size: 32px; margin-bottom: 35px;">📅</div>
+        <h3 >Список занятий</h3>
+        <a href="{% url 'admin_schedule' %}" class="btn" style="background:#6f42c1; margin-top: 5px;">Расписание</a>
     </div>
 
 </div>
 
-<div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-    <a href="{% url 'schedule_create' %}" class="btn btn-green">+ Создать занятие</a>
-    <button onclick="openImportModal()" class="btn" style="background: #6f42c1;">📊 Импорт из Excel</button>
+<!-- Быстрые действия + Информация -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 25px;">
+
+    <!-- Быстрые действия -->
+    <div class="card">
+        <h3 style="margin-bottom: 15px;">⚡ Быстрые действия</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <a href="{% url 'schedule_create' %}" class="btn btn-green" style="text-align: center;">
+                + Создать занятие
+            </a>
+            <button onclick="openImportModal()" class="btn" style="background: #6f42c1; text-align: center;">
+                📊 Импорт из Excel
+            </button>
+            <button onclick="openExportModal()" class="btn" style="background: #007bff; text-align: center;">
+                📥 Экспорт ведомости
+            </button>
+            {% if is_superuser %}
+            <a href="/admin/" class="btn btn-red" style="text-align: center;">
+                ⚙️ Django Admin
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Информация об учреждении -->
+    <div class="card">
+        <h3 style="margin-bottom: 15px;">🏫 Учебное заведение</h3>
+        {% if institution %}
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <p><strong>Название:</strong> {{ institution.name }}</p>
+                <p><strong>Адрес:</strong> {{ institution.address|default:"Не указан" }}</p>
+                <p><strong>Директор:</strong> {{ institution.director|default:"Не указан" }}</p>
+            </div>
+        {% else %}
+            <p style="color: #999;">Информация не заполнена</p>
+        {% endif %}
+    </div>
+
 </div>
 
-{% if is_superuser %}
-<div class="mt-20">
-    <a href="/admin/" class="btn btn-red">Django Admin</a>
+<!-- Последние занятия -->
+{% if recent_lessons %}
+<div class="card mt-20">
+    <h3 style="margin-bottom: 15px;">🕐 Последние занятия</h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Пара</th>
+                    <th>Группа</th>
+                    <th>Дисциплина</th>
+                    <th>Преподаватель</th>
+                    <th>Тема</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lesson in recent_lessons %}
+                <tr>
+                    <td>{{ lesson.date|date:"d.m.Y" }}</td>
+                    <td>{{ lesson.pair_number }}</td>
+                    <td>{{ lesson.group.name }}</td>
+                    <td>{{ lesson.discipline.name }}</td>
+                    <td>{{ lesson.teacher.last_name }}</td>
+                    <td>{{ lesson.topic|default:"—"|truncatechars:30 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endif %}
 
@@ -162,6 +229,160 @@ function updateImportForm() {
     hint.innerHTML = config.hint;
     templateBtn.href = config.template;
 }
+</script>
+<!-- Модальное окно экспорта -->
+<div id="exportModal" class="modal">
+    <div class="modal-content" style="max-width: 550px;">
+        <div class="modal-header">
+            <h3>
+                <span>📊</span> Экспорт ведомости
+            </h3>
+            <button class="modal-close" onclick="closeExportModal()">&times;</button>
+        </div>
+        
+        <form method="GET" action="{% url 'export_semester_report' %}" id="exportForm">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <!-- Выбор группы -->
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">👥 Группа</label>
+                    <select name="group_id" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;">
+                        <option value="">-- Выберите группу --</option>
+                        {% for group in teacher_groups %}
+                            <option value="{{ group.id }}">{{ group.name }} ({{ group.specialty }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Выбор дисциплины -->
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">📚 Дисциплина</label>
+                    <select name="discipline_id" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;">
+                        <option value="">Все дисциплины</option>
+                        {% for discipline in teacher_disciplines %}
+                            <option value="{{ discipline.id }}">{{ discipline.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Тип периода -->
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">📅 Тип периода</label>
+                    <select id="periodType" name="period_type" required 
+                            style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;"
+                            onchange="togglePeriodFields()">
+                        <option value="">-- Выберите тип --</option>
+                        <option value="semester">📘 По семестру</option>
+                        <option value="dates">📆 По датам</option>
+                        <option value="year">📅 За учебный год</option>
+                    </select>
+                </div>
+
+                <!-- Блок: Семестр -->
+                <div id="semesterBlock" style="display: none;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Выберите семестр</label>
+                    <select name="semester" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;">
+                        <option value="1">📘 1 семестр (сентябрь — декабрь)</option>
+                        <option value="2">📗 2 семестр (январь — июнь)</option>
+                    </select>
+                </div>
+
+                <!-- Блок: Даты -->
+                <div id="datesBlock" style="display: none;">
+                    <div style="display: flex; gap: 15px;">
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Дата с</label>
+                            <input type="date" name="date_from" 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Дата по</label>
+                            <input type="date" name="date_to" 
+                                   style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Блок: Учебный год -->
+                <div id="yearBlock" style="display: none;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Учебный год</label>
+                    <select name="academic_year" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f7fafc;">
+                        <option value="2025">2025/2026</option>
+                        <option value="2024">2024/2025</option>
+                        <option value="2023">2023/2024</option>
+                    </select>
+                </div>
+
+                <!-- Формат файла -->
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">📄 Формат файла</label>
+                    <div style="display: flex; gap: 20px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                            <input type="radio" name="format" value="xlsx" checked> Excel (.xlsx)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+                            <input type="radio" name="format" value="csv"> CSV
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn-gray" onclick="closeExportModal()">Отмена</button>
+                <button type="submit" class="btn-green" style="display: flex; align-items: center; gap: 6px;">
+                    <span>📥</span> Скачать отчёт
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openExportModal() {
+    document.getElementById('exportModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    // Сброс формы
+    document.getElementById('exportForm').reset();
+    document.getElementById('semesterBlock').style.display = 'none';
+    document.getElementById('datesBlock').style.display = 'none';
+    document.getElementById('yearBlock').style.display = 'none';
+}
+
+function togglePeriodFields() {
+    const type = document.getElementById('periodType').value;
+    
+    document.getElementById('semesterBlock').style.display = 'none';
+    document.getElementById('datesBlock').style.display = 'none';
+    document.getElementById('yearBlock').style.display = 'none';
+    
+    if (type === 'semester') {
+        document.getElementById('semesterBlock').style.display = 'block';
+    } else if (type === 'dates') {
+        document.getElementById('datesBlock').style.display = 'block';
+    } else if (type === 'year') {
+        document.getElementById('yearBlock').style.display = 'block';
+    }
+}
+
+// Закрытие по клику вне окна
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('exportModal');
+    if (event.target === modal) {
+        closeExportModal();
+    }
+});
+
+// Закрытие по Escape
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeExportModal();
+    }
+});
 </script>
 
 {% endblock %}

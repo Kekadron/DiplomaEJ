@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from .models import Lesson, Grade, Discipline
 from students.models import Teacher, Group, Student, Institution
 from datetime import date as dt_date, timedelta
+from datetime import datetime
+from django.db.models import Q
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from django.http import HttpResponse
@@ -105,6 +107,10 @@ def admin_dashboard(request):
     if not (request.user.is_superuser or request.user.is_staff):
         messages.error(request, "Доступ запрещён.")
         return redirect('login')
+    
+    # Инициализируем заранее
+    teacher_groups = Group.objects.none()
+    teacher_disciplines = Discipline.objects.none()
 
     if request.user.is_superuser:
         total_institutions = Institution.objects.count()
@@ -112,8 +118,13 @@ def admin_dashboard(request):
         total_students = Student.objects.count()
         total_teachers = Teacher.objects.count()
         total_disciplines = Discipline.objects.count()
+        
+        teacher_groups = Group.objects.all()
+        teacher_disciplines = Discipline.objects.all()
+        
+        institution = Institution.objects.first()
+        recent_lessons = Lesson.objects.select_related('group', 'discipline', 'teacher').order_by('-date', '-pair_number')[:10]
     else:
-        # Завуч видит только своё заведение
         teacher = Teacher.objects.get(user=request.user)
         institution = teacher.institution
         total_institutions = 1
@@ -121,6 +132,13 @@ def admin_dashboard(request):
         total_students = Student.objects.filter(group__institution=institution).count()
         total_teachers = Teacher.objects.filter(institution=institution).count()
         total_disciplines = Discipline.objects.filter(institution=institution).count()
+        
+        teacher_groups = Group.objects.filter(institution=institution)
+        teacher_disciplines = Discipline.objects.filter(institution=institution)
+        
+        recent_lessons = Lesson.objects.filter(
+            group__institution=institution
+        ).select_related('group', 'discipline', 'teacher').order_by('-date', '-pair_number')[:10]
 
     context = {
         'total_institutions': total_institutions,
@@ -128,7 +146,11 @@ def admin_dashboard(request):
         'total_students': total_students,
         'total_teachers': total_teachers,
         'total_disciplines': total_disciplines,
-        'is_superuser': request.user.is_superuser,   # передаём в шаблон
+        'teacher_groups': teacher_groups,
+        'teacher_disciplines': teacher_disciplines,
+        'recent_lessons': recent_lessons,
+        'institution': institution,
+        'is_superuser': request.user.is_superuser,
     }
     return render(request, 'journal/admin_dashboard.html', context)
 
@@ -438,7 +460,7 @@ def student_dashboard(request):
     # Группируем оценки по дисциплине
     from collections import defaultdict
     grades_by_discipline = defaultdict(list)
-    avg_scores = {}  # Словарь для средних баллов
+    avg_scores = {}
 
     grades = Grade.objects.filter(student=student).select_related('lesson__discipline').order_by('lesson__date')
 
@@ -446,12 +468,14 @@ def student_dashboard(request):
         discipline_name = grade.lesson.discipline.name
         grades_by_discipline[discipline_name].append(grade)
 
-    # Рассчитываем средний балл по каждой дисциплине
+    # Считаем средний по каждой дисциплине + общий
+    overall_total = 0
+    overall_count = 0
+
     for discipline_name, grades_list in grades_by_discipline.items():
         total = 0
         count = 0
         for grade in grades_list:
-            # Проверяем, является ли оценка числовой (2,3,4,5)
             if grade.value.isdigit() and grade.value in ['2', '3', '4', '5']:
                 total += int(grade.value)
                 count += 1
@@ -462,11 +486,19 @@ def student_dashboard(request):
             avg = 0
         
         avg_scores[discipline_name] = avg
+        overall_total += total
+        overall_count += count
+
+    # Общий средний балл
+    overall_avg = round(overall_total / overall_count, 2) if overall_count > 0 else 0
 
     context = {
         'student': student,
         'grades_by_discipline': dict(grades_by_discipline),
-        'avg_scores': avg_scores,  # Добавляем средние баллы в контекст
+        'avg_scores': avg_scores,
+        'overall_avg': overall_avg,
+        'overall_count': overall_count,
+        'disciplines_count': len(grades_by_discipline),
     }
     return render(request, 'journal/student_dashboard.html', context)
 
@@ -613,16 +645,6 @@ def student_schedule(request, date=None):
 
     return render(request, 'journal/student_schedule.html', context)
 
-import pandas as pd
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import HttpResponse
-from openpyxl import Workbook
-from students.models import Student, Group, Teacher, Institution
-from journal.models import Discipline, Lesson, Grade
-
-
 @login_required
 def import_data(request):
     if not (request.user.is_superuser or request.user.is_staff):
@@ -663,11 +685,6 @@ def import_data(request):
         return redirect('admin_dashboard')
 
     return redirect('admin_dashboard')
-
-
-# ============ ОБРАБОТЧИКИ ИМПОРТА ============
-
-# ============ ОБРАБОТЧИКИ ИМПОРТА (ЗАМЕНИТЬ ПОЛНОСТЬЮ) ============
 
 def import_schedule_data(request, df):
     created = 0
@@ -779,7 +796,6 @@ def import_schedule_data(request, df):
 
     show_import_result(request, created, skipped, errors, conflicts, error_details)
 
-
 def import_students_data(request, df):
     created = 0
     skipped = 0
@@ -848,7 +864,6 @@ def import_students_data(request, df):
 
     show_import_result(request, created, skipped, errors, error_details=error_details)
 
-
 def import_teachers_data(request, df):
     created = 0
     skipped = 0
@@ -907,7 +922,6 @@ def import_teachers_data(request, df):
 
     show_import_result(request, created, skipped, errors, error_details=error_details)
 
-
 def import_disciplines_data(request, df):
     created = 0
     skipped = 0
@@ -941,7 +955,6 @@ def import_disciplines_data(request, df):
             errors += 1
 
     show_import_result(request, created, skipped, errors, error_details=error_details)
-
 
 def import_groups_data(request, df):
     created = 0
@@ -983,9 +996,6 @@ def import_groups_data(request, df):
 
     show_import_result(request, created, skipped, errors, error_details=error_details)
 
-
-# ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============
-
 def show_import_result(request, created, skipped=0, errors=0, conflicts=None, error_details=None):
     """Показывает результат импорта с детализацией"""
     if created:
@@ -1012,9 +1022,6 @@ def show_import_result(request, created, skipped=0, errors=0, conflicts=None, er
     
     if not created and not errors and not skipped:
         messages.info(request, "ℹ️ Ничего не импортировано — все данные уже существуют")
-
-
-# ============ СКАЧИВАНИЕ ШАБЛОНОВ ============
 
 def download_template(request, template_type):
     from openpyxl import Workbook
@@ -1061,96 +1068,262 @@ def download_template(request, template_type):
     response['Content-Disposition'] = f'attachment; filename=template_{template_type}.xlsx'
     wb.save(response)
     return response
-
 @login_required
 def export_semester_report(request):
-    teacher = request.user.teacher
-    semester = int(request.GET.get('semester', 1))
-
-    if semester == 1:
-        months = [9,10,11,12]
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
+    
+    # Проверка прав (только завуч/админ)
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Доступ запрещён")
+        return redirect('teacher_dashboard')
+    
+    # Получаем teacher (если есть) или берём инфу из User
+    try:
+        teacher = Teacher.objects.get(user=request.user)
+        institution = teacher.institution
+    except Teacher.DoesNotExist:
+        # Суперюзер без привязки к Teacher — берём первое учреждение
+        institution = Institution.objects.first()
+        if not institution:
+            messages.error(request, "Нет учебного заведения. Создайте учреждение.")
+            return redirect('admin_dashboard')
+        teacher = None
+    
+    # Получаем параметры
+    group_id = request.GET.get('group_id')
+    discipline_id = request.GET.get('discipline_id')
+    period_type = request.GET.get('period_type')
+    file_format = request.GET.get('format', 'xlsx')
+    
+    if not group_id or not period_type:
+        messages.error(request, "Выберите группу и тип периода")
+        return redirect('admin_dashboard')
+    
+    # Проверяем группу
+    group = get_object_or_404(Group, id=group_id)
+    
+    # Если завуч — проверяем, что группа его учреждения
+    if teacher and group.institution != institution:
+        messages.error(request, "Эта группа не вашего учебного заведения")
+        return redirect('admin_dashboard')
+    
+    # Определяем период
+    if period_type == 'semester':
+        semester = int(request.GET.get('semester', 1))
+        if semester == 1:
+            date_filter = Q(date__month__in=[9, 10, 11, 12])
+            period_name = f"1 семестр"
+        else:
+            date_filter = Q(date__month__in=[1, 2, 3, 4, 5, 6])
+            period_name = f"2 семестр"
+    
+    elif period_type == 'dates':
+        date_from = request.GET.get('date_from')
+        date_to = request.GET.get('date_to')
+        
+        if not date_from or not date_to:
+            messages.error(request, "Выберите обе даты")
+            return redirect('admin_dashboard')
+        
+        date_filter = Q(date__gte=date_from, date__lte=date_to)
+        period_name = f"{date_from} — {date_to}"
+    
+    elif period_type == 'year':
+        year_start = int(request.GET.get('academic_year', 2025))
+        date_filter = Q(date__gte=f"{year_start}-09-01", date__lte=f"{year_start+1}-06-30")
+        period_name = f"{year_start}/{year_start+1} учебный год"
+    
     else:
-        months = [1,2,3,4,5,6]
-
+        messages.error(request, "Неверный тип периода")
+        return redirect('admin_dashboard')
+    
+    # Фильтруем занятия
     lessons = Lesson.objects.filter(
-        teacher=teacher,
-        date__month__in=months
-    ).select_related('group', 'discipline')
-
-    groups = set(l.group for l in lessons)
-
+        date_filter,
+        group=group
+    ).select_related('discipline', 'teacher')
+    
+    # Фильтр по дисциплине
+    if discipline_id:
+        lessons = lessons.filter(discipline_id=discipline_id)
+    
+    lessons = lessons.order_by('date', 'pair_number')
+    
+    if not lessons.exists():
+        messages.warning(request, f"Нет занятий для группы {group.name} за {period_name}")
+        return redirect('admin_dashboard')
+    
+    # Создаём Excel
     wb = Workbook()
     ws = wb.active
-    ws.title = "Отчёт"
-
-    row = 1
-
-    bold = Font(bold=True)
-
-    for group in groups:
-        students = group.students.all()
-
-        for student in students:
-
-            # === Заголовок студента ===
-            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
-            cell = ws.cell(row=row, column=1)
-            cell.value = f"{student.last_name} {student.first_name} | {group.name} | Семестр {semester}"
-            cell.font = Font(bold=True, size=14)
-            row += 1
-
-            # === Таблица ===
-            ws.cell(row=row, column=1, value="Дисциплина").font = bold
-            ws.cell(row=row, column=2, value="Средний балл").font = bold
-            row += 1
-
-            grades = Grade.objects.filter(
-                student=student,
-                lesson__group=group,
-                lesson__date__month__in=months
-            ).select_related('lesson__discipline')
-
-            by_disc = {}
-
-            for g in grades:
-                name = g.lesson.discipline.name
-                by_disc.setdefault(name, []).append(g)
-
-            total = 0
-            count = 0
-
-            for d, g_list in by_disc.items():
-                values = [int(x.value) for x in g_list if x.value.isdigit()]
-                avg = round(sum(values)/len(values), 2) if values else 0
-
-                ws.cell(row=row, column=1, value=d)
-                ws.cell(row=row, column=2, value=avg)
-
-                total += sum(values)
-                count += len(values)
-
-                row += 1
-
-            overall = round(total/count, 2) if count else 0
-
-            ws.cell(row=row, column=1, value="Общий средний").font = bold
-            ws.cell(row=row, column=2, value=overall).font = bold
-            row += 2
-
-            # === РАЗДЕЛИТЕЛЬ (чтобы резать) ===
-            for col in range(1, 5):
-                ws.cell(row=row, column=col).value = "----------------------"
-            row += 3
-
-    # ширина колонок
-    ws.column_dimensions['A'].width = 35
-    ws.column_dimensions['B'].width = 20
-
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ws.title = f"Ведомость {group.name}"
+    
+    # Стили
+    header_font = Font(bold=True, size=12, color='FFFFFF')
+    header_fill = PatternFill(start_color='007bff', end_color='007bff', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    cell_alignment = Alignment(vertical='center')
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
     )
-    response['Content-Disposition'] = 'attachment; filename=semester_report.xlsx'
-
+    
+    # Заголовок
+    ws.merge_cells('A1:H1')
+    title_cell = ws.cell(row=1, column=1)
+    title_cell.value = f"Ведомость успеваемости | {group.name} | {period_name}"
+    title_cell.font = Font(bold=True, size=16, color='1a1a2e')
+    title_cell.alignment = Alignment(horizontal='center')
+    ws.row_dimensions[1].height = 35
+    
+    # Подзаголовок
+    ws.merge_cells('A2:H2')
+    sub_cell = ws.cell(row=2, column=1)
+    teacher_name = f"{teacher.last_name} {teacher.first_name}" if teacher else request.user.username
+    sub_cell.value = f"Завуч: {teacher_name} | Дата выгрузки: {datetime.now().strftime('%d.%m.%Y')}"
+    sub_cell.font = Font(size=10, color='666666')
+    sub_cell.alignment = Alignment(horizontal='center')
+    ws.row_dimensions[2].height = 25
+    
+    row = 4
+    
+    # Получаем студентов группы
+    students = group.students.all().order_by('last_name', 'first_name')
+    
+    # Получаем все даты занятий (для заголовков колонок)
+    lesson_dates = []
+    for lesson in lessons:
+        date_str = lesson.date.strftime('%d.%m')
+        pair_str = f"{date_str} ({lesson.pair_number}п)"
+        lesson_dates.append({
+            'id': lesson.id,
+            'label': pair_str,
+            'discipline': lesson.discipline.name,
+            'date': lesson.date,
+            'pair': lesson.pair_number
+        })
+    
+    # Заголовки таблицы
+    headers = ['№', 'Студент']
+    for ld in lesson_dates:
+        headers.append(ld['label'])
+    headers.append('Ср. балл')
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Ширина колонок
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 30
+    for col in range(3, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 10
+    
+    row += 1
+    
+    # Заполняем оценки
+    for idx, student in enumerate(students, 1):
+        ws.cell(row=row, column=1, value=idx).alignment = Alignment(horizontal='center')
+        ws.cell(row=row, column=1).border = thin_border
+        
+        ws.cell(row=row, column=2, value=f"{student.last_name} {student.first_name}").border = thin_border
+        ws.cell(row=row, column=2).alignment = cell_alignment
+        
+        total_score = 0
+        score_count = 0
+        
+        for col_offset, ld in enumerate(lesson_dates, 3):
+            grade = Grade.objects.filter(
+                student=student,
+                lesson_id=ld['id']
+            ).first()
+            
+            cell = ws.cell(row=row, column=col_offset)
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            if grade:
+                value = grade.value
+                cell.value = value
+                
+                # Подсветка оценок
+                if value == '5':
+                    cell.fill = PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid')
+                elif value == '4':
+                    cell.fill = PatternFill(start_color='d1ecf1', end_color='d1ecf1', fill_type='solid')
+                elif value == '3':
+                    cell.fill = PatternFill(start_color='fff3cd', end_color='fff3cd', fill_type='solid')
+                elif value == '2':
+                    cell.fill = PatternFill(start_color='f8d7da', end_color='f8d7da', fill_type='solid')
+                elif value in ('Н', 'н'):
+                    cell.fill = PatternFill(start_color='e2e3e5', end_color='e2e3e5', fill_type='solid')
+                
+                # Считаем средний балл
+                if value.isdigit():
+                    total_score += int(value)
+                    score_count += 1
+        
+        # Средний балл
+        avg_cell = ws.cell(row=row, column=len(headers))
+        if score_count > 0:
+            avg = round(total_score / score_count, 2)
+            avg_cell.value = avg
+        else:
+            avg_cell.value = '—'
+        
+        avg_cell.font = Font(bold=True)
+        avg_cell.border = thin_border
+        avg_cell.alignment = Alignment(horizontal='center')
+        
+        row += 1
+    
+    # Итоговая строка
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+    ws.cell(row=row, column=1, value="Среднее по предметам:").font = Font(bold=True)
+    ws.cell(row=row, column=1).border = thin_border
+    
+    row += 2
+    
+    # Легенда
+    legend_data = [
+        ('5', 'd4edda', 'Отлично'),
+        ('4', 'd1ecf1', 'Хорошо'),
+        ('3', 'fff3cd', 'Удовлетворительно'),
+        ('2', 'f8d7da', 'Неудовлетворительно'),
+        ('Н', 'e2e3e5', 'Не был'),
+    ]
+    
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    ws.cell(row=row, column=1, value="Легенда:").font = Font(bold=True)
+    row += 1
+    
+    for value, color, desc in legend_data:
+        cell = ws.cell(row=row, column=1, value=value)
+        cell.fill = PatternFill(start_color=color, end_color=color, fill_type='solid')
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = thin_border
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
+        ws.cell(row=row, column=2, value=desc).border = thin_border
+        row += 1
+    
+    # Сохраняем
+    if file_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename=report_{group.name}_{period_name}.csv'
+        # CSV сложнее с форматированием, пока отдаём Excel
+    else:
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename=report_{group.name}_{period_name}.xlsx'
+    
     wb.save(response)
     return response
 

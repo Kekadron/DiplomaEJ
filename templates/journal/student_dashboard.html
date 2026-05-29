@@ -6,7 +6,6 @@
 {% block content %}
 
 <h1>Мои оценки — {{ student.last_name }} {{ student.first_name }}</h1>
-
 <a href="{% url 'student_schedule_today' %}" class="btn mt-20">📅 Расписание</a>
 
 <div class="mt-30">
@@ -85,6 +84,28 @@
         <p style="text-align: center; color: #666;">У вас пока нет оценок</p>
     </div>
     {% endfor %}
+</div>
+<div style="padding: 8px 18px; border-radius: 25px;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-size: 14px; color: #666;">Общий средний балл:</span>
+            <span style="font-size: 22px; font-weight: 700;
+                {% if overall_avg >= 4.5 %}color: #28a745;
+                {% elif overall_avg >= 3.5 %}color: #17a2b8;
+                {% elif overall_avg >= 2.5 %}color: #ffc107;
+                {% elif overall_avg > 0 %}color: #dc3545;
+                {% else %}color: #999;{% endif %}">
+                {% if overall_count > 0 %}
+                    {{ overall_avg }}
+                {% else %}
+                    —
+                {% endif %}
+            </span>
+            <span style="font-size: 12px; color: #999;">
+                ({{ overall_count }} оценок по {{ disciplines_count }} дисциплинам)
+            </span>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
