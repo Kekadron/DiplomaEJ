@@ -12,10 +12,16 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
-            margin: 0;
             background: #f5f7fb;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
         header {
@@ -26,6 +32,7 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
 
         header h1 {
@@ -67,7 +74,40 @@
             max-width: 100%;
             margin: 0;
             padding: 20px 25px;
+            flex: 1;
         }
+
+        /* Футер */
+.footer {
+    background: #007bff;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 20px 25px;
+    flex-shrink: 0;
+    font-size: 14px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.footer-left {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+}
+
+.footer-right {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+}
+
+
 
         .btn {
             display: inline-block;
@@ -104,13 +144,11 @@
         }
 
         .btn-red {
-            
-            background: #ec3e4f
-            
+            background: #ec3e4f;
         }
 
         .btn-red:hover {
-            background: #e71126
+            background: #e71126;
         }
 
         .card {
@@ -170,7 +208,7 @@
             margin-bottom: 20px;
             color: #333;
         }
-        .h1-head{
+        .h1-head {
             margin: 0;
             font-size: 22px;
             cursor: pointer;
@@ -202,136 +240,135 @@
         .mt-20 { margin-top: 20px; }
         .mt-30 { margin-top: 30px; }
         .text-center { text-align: center; }
+        
         .alert {
-        padding: 14px 18px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        font-weight: 500;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
         }
 
-.flash-message {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    font-weight: 500;
-}
+        .flash-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
 
-.flash-message.success {
-    background: #d4edda;
-    color: #155724;
-}
+        .flash-message.success {
+            background: #d4edda;
+            color: #155724;
+        }
 
-.flash-message.error {
-    background: #f8d7da;
-    color: #721c24;
-}
+        .flash-message.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
 
-.flash-message.info {
-    background: #cce5ff;
-    color: #004085;
-}
-.fade-out {
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: 0.4s ease;
-}
-.modal {
-    display: none;
+        .flash-message.info {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .fade-out {
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: 0.4s ease;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
+            justify-content: center;
+            align-items: center;
+        }
 
-    position: fixed;
-    z-index: 1000;
-    top: 0;
-    left: 0;
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: modalSlideIn 0.3s ease;
+        }
 
-    width: 100vw;
-    height: 100vh;
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
 
-    background-color: rgba(0,0,0,0.5);
-    backdrop-filter: blur(2px);
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    /* 🔥 ВОТ КЛЮЧ */
-    justify-content: center;
-    align-items: center;
-}
+        .modal-header h3 {
+            margin: 0;
+            font-size: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-.modal-content {
-    background: white;
-    margin: 10% auto;
-    width: 90%;
-    max-width: 500px;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    animation: modalSlideIn 0.3s ease;
-}
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+            transition: 0.2s;
+        }
 
-@keyframes modalSlideIn {
-    from {
-        transform: translateY(-50px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
+        .modal-close:hover {
+            color: #333;
+        }
 
-.modal-header {
-    padding: 20px 25px;
-    border-bottom: 1px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+        .modal-body {
+            padding: 25px;
+        }
 
-.modal-header h3 {
-    margin: 0;
-    font-size: 20px;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
+        .modal-footer {
+            padding: 15px 25px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
 
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 28px;
-    cursor: pointer;
-    color: #999;
-    transition: 0.2s;
-}
+        .btn-gray {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
 
-.modal-close:hover {
-    color: #333;
-}
-
-.modal-body {
-    padding: 25px;
-}
-
-.modal-footer {
-    padding: 15px 25px;
-    border-top: 1px solid #eee;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-}
-
-.btn-gray {
-    background: #6c757d;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.btn-gray:hover {
-    background: #5a6268;
-}
+        .btn-gray:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
+
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const messages = document.querySelectorAll(".flash-message");
@@ -345,10 +382,11 @@ document.addEventListener("DOMContentLoaded", function () {
             setTimeout(() => {
                 msg.remove();
             }, 500);
-        }, 3000); // 3 секунды
+        }, 3000);
     });
 });
 </script>
+
 <body>
 
 <header>
@@ -383,8 +421,17 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
         {% endfor %}
     </div>
-{% endif %}
+    {% endif %}
     {% block content %}{% endblock %}
 </div>
+<!-- Футер -->
+<footer class="footer">
+    <div class="footer-content" style="justify-content: center; text-align: center;">
+        <span style="color: rgba(255, 255, 255, 0.8); font-size: 14px;">
+            Copyright © Алябьев Егор, 2026. Все права защищены.
+        </span>
+    </div>
+</footer>
+
 </body>
 </html>

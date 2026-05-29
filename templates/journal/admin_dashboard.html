@@ -53,20 +53,46 @@
 
 <!-- Модальное окно импорта -->
 <div id="importModal" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-content" style="max-width: 550px;">
         <div class="modal-header">
-            <h3>📥 Импорт расписания</h3>
+            <h3>📥 Импорт данных</h3>
             <button class="modal-close" onclick="closeImportModal()">&times;</button>
         </div>
-        <form method="post" action="{% url 'import_schedule' %}" enctype="multipart/form-data">
+        <form method="post" action="{% url 'import_data' %}" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="modal-body">
-                <p style="margin-bottom: 15px; color: #666;">Выберите Excel-файл с расписанием для импорта.</p>
-                <input type="file" name="file" accept=".xlsx" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px;">
+                <p style="margin-bottom: 15px; color: #666;">Выберите тип данных и загрузите Excel-файл.</p>
+                
+                <!-- Выбор типа импорта -->
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Что импортируем?</label>
+                <select name="import_type" id="importType" required 
+                        style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 10px; 
+                               font-size: 15px; margin-bottom: 20px; background: #f7fafc;"
+                        onchange="updateImportForm()">
+                    <option value="">-- Выберите тип --</option>
+                    <option value="schedule">📅 Расписание занятий</option>
+                    <option value="students">👨‍🎓 Студенты</option>
+                    <option value="teachers">👩‍🏫 Преподаватели</option>
+                    <option value="disciplines">📚 Дисциплины</option>
+                    <option value="groups">👥 Группы</option>
+                </select>
+
+                <!-- Подсказка -->
+                <div id="importHint" style="background: #f0f7ff; padding: 12px; border-radius: 8px; 
+                            font-size: 13px; color: #2c5282; margin-bottom: 15px; display: none;">
+                </div>
+
+                <!-- Поле файла -->
+                <div id="fileField" style="display: none;">
+                    <input type="file" name="file" accept=".xlsx" required 
+                           style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; 
+                                  border-radius: 10px; font-size: 14px;">
+                </div>
             </div>
-            <div class="modal-footer">
-                <a href="{% url 'download_template' %}" class="btn" style="background: #6c757d; text-decoration: none;">📎 Скачать шаблон</a>
-                <button type="submit" class="btn btn-green">Загрузить</button>
+            <div class="modal-footer" id="modalActions" style="display: none;">
+                <a id="downloadTemplateBtn" href="#" class="btn" 
+                   style="background: #6c757d; text-decoration: none;">📎 Скачать шаблон</a>
+                <button type="submit" class="btn btn-green">📤 Загрузить</button>
             </div>
         </form>
     </div>
@@ -75,10 +101,66 @@
 <script>
 function openImportModal() {
     document.getElementById('importModal').style.display = 'flex';
+    resetImportForm();
 }
 
 function closeImportModal() {
     document.getElementById('importModal').style.display = 'none';
+    resetImportForm();
+}
+
+function resetImportForm() {
+    document.getElementById('importType').value = '';
+    document.getElementById('fileField').style.display = 'none';
+    document.getElementById('modalActions').style.display = 'none';
+    document.getElementById('importHint').style.display = 'none';
+}
+
+function updateImportForm() {
+    const type = document.getElementById('importType').value;
+    const fileField = document.getElementById('fileField');
+    const modalActions = document.getElementById('modalActions');
+    const hint = document.getElementById('importHint');
+    const templateBtn = document.getElementById('downloadTemplateBtn');
+    
+    if (!type) {
+        fileField.style.display = 'none';
+        modalActions.style.display = 'none';
+        hint.style.display = 'none';
+        return;
+    }
+    
+    fileField.style.display = 'block';
+    modalActions.style.display = 'flex';
+    hint.style.display = 'block';
+    
+    // Меняем подсказку и ссылку на шаблон в зависимости от типа
+    const configs = {
+        'schedule': {
+            hint: '📅 <b>Колонки:</b> Дата, Пара, Группа, Дисциплина, Преподаватель, Тема',
+            template: '{% url "download_template" "schedule" %}'
+        },
+        'students': {
+            hint: '👨‍🎓 <b>Колонки:</b> Фамилия, Имя, Отчество, Группа',
+            template: '{% url "download_template" "students" %}'
+        },
+        'teachers': {
+            hint: '👩‍🏫 <b>Колонки:</b> Фамилия, Имя, Отчество, Телефон (необязательно)',
+            template: '{% url "download_template" "teachers" %}'
+        },
+        'disciplines': {
+            hint: '📚 <b>Колонки:</b> Название, Код',
+            template: '{% url "download_template" "disciplines" %}'
+        },
+        'groups': {
+            hint: '👥 <b>Колонки:</b> Название, Специальность, Год начала',
+            template: '{% url "download_template" "groups" %}'
+        }
+    };
+    
+    const config = configs[type];
+    hint.innerHTML = config.hint;
+    templateBtn.href = config.template;
 }
 </script>
 

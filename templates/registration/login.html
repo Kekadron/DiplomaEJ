@@ -3,31 +3,176 @@
 {% block title %}Вход в систему{% endblock %}
 
 {% block content %}
-<div style="max-width: 450px; margin: 50px auto;">
-    <div class="card" style="padding: 40px;">
-        <h1 style="text-align: center; margin-bottom: 30px; font-size: 28px;">Вход в систему</h1>
-
-        {% if form.errors %}
-            <div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-bottom: 20px; border: 1px solid #f5c6cb;">
-                Неверный логин или пароль
+<div style="min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+    <div style="width: 100%; max-width: 420px;">
+        
+        <!-- Иконка / логотип -->
+        <div style="text-align: center; margin-bottom: 25px;">
+            <div style="
+                width: 70px; height: 70px; 
+                background: linear-gradient(135deg, #007bff, #00a2ff); 
+                border-radius: 20px; 
+                display: inline-flex; 
+                align-items: center; 
+                justify-content: center;
+                box-shadow: 0 8px 25px rgba(0,123,255,0.3);
+            ">
+                <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
             </div>
-        {% endif %}
+            <h2 style="margin-top: 20px; font-size: 26px; color: #1a1a2e; font-weight: 700;">
+                С возвращением
+            </h2>
+            <p style="color: #6c757d; margin-top: 8px; font-size: 15px;">
+                Войдите в электронный журнал
+            </p>
+        </div>
 
-        <form method="post">
-            {% csrf_token %}
-            
-            {% for field in form %}
-                <label style="display: block; margin-bottom: 8px; font-weight: 600;">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}
-                    <div style="color: #dc3545; font-size: 14px; margin-top: 5px;">{{ field.errors }}</div>
-                {% endif %}
-            {% endfor %}
-            
-            <button type="submit" class="btn" style="width: 100%; padding: 14px; font-size: 16px; margin-top: 25px;">
-                Войти
-            </button>
-        </form>
+        <!-- Карточка -->
+        <div style="
+            background: white; 
+            padding: 35px 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.04);
+        ">
+            {% if form.errors %}
+                <div style="
+                    background: #fff5f5; 
+                    color: #c53030; 
+                    padding: 14px 18px; 
+                    border-radius: 12px; 
+                    margin-bottom: 25px; 
+                    border-left: 4px solid #fc8181;
+                    font-size: 14px;
+                    font-weight: 500;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                ">
+                    <span style="font-size: 18px;">⚠️</span>
+                    Неверный логин или пароль
+                </div>
+            {% endif %}
+
+            <form method="post" style="display: flex; flex-direction: column; gap: 20px;">
+                {% csrf_token %}
+                
+                <!-- Логин -->
+                <div>
+                    <label style="
+                        display: block; 
+                        margin-bottom: 8px; 
+                        font-weight: 600; 
+                        font-size: 14px; 
+                        color: #4a5568;
+                        letter-spacing: 0.3px;
+                    ">
+                        Логин
+                    </label>
+                    <div style="position: relative;">
+                        <span style="
+                            position: absolute; 
+                            left: 15px; 
+                            top: 50%; 
+                            transform: translateY(-50%); 
+                            color: #a0aec0;
+                            font-size: 16px;
+                        ">👤</span>
+                        <input 
+                            type="text" 
+                            name="username" 
+                            autofocus 
+                            required 
+                            style="
+                                width: 100%; 
+                                padding: 14px 15px 14px 45px; 
+                                border: 2px solid #e2e8f0; 
+                                border-radius: 12px; 
+                                font-size: 15px;
+                                transition: all 0.2s;
+                                background: #f7fafc;
+                                box-sizing: border-box;
+                            "
+                            onfocus="this.style.borderColor='#007bff'; this.style.background='white'; this.style.boxShadow='0 0 0 4px rgba(0,123,255,0.1)'"
+                            onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f7fafc'; this.style.boxShadow='none'"
+                            placeholder="Введите логин"
+                        >
+                    </div>
+                </div>
+
+                <!-- Пароль -->
+                <div>
+                    <label style="
+                        display: block; 
+                        margin-bottom: 8px; 
+                        font-weight: 600; 
+                        font-size: 14px; 
+                        color: #4a5568;
+                        letter-spacing: 0.3px;
+                    ">
+                        Пароль
+                    </label>
+                    <div style="position: relative;">
+                        <span style="
+                            position: absolute; 
+                            left: 15px; 
+                            top: 50%; 
+                            transform: translateY(-50%); 
+                            color: #a0aec0;
+                            font-size: 16px;
+                        ">🔒</span>
+                        <input 
+                            type="password" 
+                            name="password" 
+                            required 
+                            style="
+                                width: 100%; 
+                                padding: 14px 15px 14px 45px; 
+                                border: 2px solid #e2e8f0; 
+                                border-radius: 12px; 
+                                font-size: 15px;
+                                transition: all 0.2s;
+                                background: #f7fafc;
+                                box-sizing: border-box;
+                            "
+                            onfocus="this.style.borderColor='#007bff'; this.style.background='white'; this.style.boxShadow='0 0 0 4px rgba(0,123,255,0.1)'"
+                            onblur="this.style.borderColor='#e2e8f0'; this.style.background='#f7fafc'; this.style.boxShadow='none'"
+                            placeholder="Введите пароль"
+                        >
+                    </div>
+                </div>
+
+                <button 
+                    type="submit" 
+                    style="
+                        width: 100%; 
+                        padding: 15px; 
+                        background: linear-gradient(135deg, #007bff, #0056b3); 
+                        color: white; 
+                        border: none; 
+                        border-radius: 12px; 
+                        font-size: 16px; 
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        margin-top: 10px;
+                        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+                        letter-spacing: 0.5px;
+                    "
+                    onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(0,123,255,0.4)'"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,123,255,0.3)'"
+                >
+                    Войти в систему
+                </button>
+            </form>
+        </div>
+
+        
     </div>
 </div>
 {% endblock %}

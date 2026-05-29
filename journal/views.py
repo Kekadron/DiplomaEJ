@@ -11,6 +11,7 @@ from datetime import date as dt_date, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from django.http import HttpResponse
+import pandas as pd
 
 @login_required
 def teacher_dashboard(request, date=None):
@@ -612,86 +613,49 @@ def student_schedule(request, date=None):
 
     return render(request, 'journal/student_schedule.html', context)
 
+import pandas as pd
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import HttpResponse
+from openpyxl import Workbook
+from students.models import Student, Group, Teacher, Institution
+from journal.models import Discipline, Lesson, Grade
+
+
 @login_required
-def import_schedule(request):
-    created = 0
-    skipped = 0
-    errors = 0
-    conflicts = []
-    
+def import_data(request):
     if not (request.user.is_superuser or request.user.is_staff):
         return redirect('login')
 
     if request.method == 'POST':
+        import_type = request.POST.get('import_type')
         file = request.FILES.get('file')
 
         if not file:
             messages.error(request, "Файл не выбран")
             return redirect('admin_dashboard')
-            
+
+        if not import_type:
+            messages.error(request, "Тип импорта не выбран")
+            return redirect('admin_dashboard')
+
         try:
-            import pandas as pd
-
             df = pd.read_excel(file)
-            created = 0
-
-            for _, row in df.iterrows():
-                try:
-                    date = pd.to_datetime(row['Дата']).date()
-                    pair = int(row['Пара'])
-                    group = Group.objects.filter(name=row['Группа']).first()
-                    discipline = Discipline.objects.filter(name=row['Дисциплина']).first()
-
-                    if not group or not discipline:
-                        errors += 1
-                        continue
-
-                    teacher_parts = str(row['Преподаватель']).split()
-                    teacher = Teacher.objects.filter(last_name=teacher_parts[0]).first()
-
-                    if not teacher:
-                        errors += 1
-                        continue
-
-                    # === ПРОВЕРКА КОНФЛИКТА ===
-                    existing_lesson = Lesson.objects.filter(
-                        date=date,
-                        pair_number=pair,
-                        group=group
-                    ).first()
-
-                    if existing_lesson:
-                        conflicts.append(
-                            f"{date} | пара {pair} | {group.name} уже занята ({existing_lesson.discipline})"
-                        )
-                        skipped += 1
-                        continue
-
-                    # === СОЗДАЕМ ЕСЛИ НЕТ ===
-                    lesson = Lesson.objects.create(
-                        date=date,
-                        pair_number=pair,
-                        group=group,
-                        discipline=discipline,
-                        teacher=teacher,
-                        topic=row.get('Тема', '')
-                    )
-
-                    # создаем оценки
-                    students = group.students.all()
-                    for student in students:
-                        Grade.objects.get_or_create(student=student, lesson=lesson)
-
-                    created += 1
-
-                except Exception as e:
-                    errors += 1
-
-            messages.success(request, f"Импортировано занятий: {created}")
-            if conflicts:
-                messages.warning(request, f"Пропущено (конфликты): {skipped}\n" + "\n".join(conflicts[:5]))
-            if errors:
-                messages.error(request, f"Ошибок: {errors}")
+            
+            handlers = {
+                'schedule': import_schedule_data,
+                'students': import_students_data,
+                'teachers': import_teachers_data,
+                'disciplines': import_disciplines_data,
+                'groups': import_groups_data,
+            }
+            
+            handler = handlers.get(import_type)
+            if handler:
+                handler(request, df)
+            else:
+                messages.error(request, "Неизвестный тип импорта")
 
         except Exception as e:
             messages.error(request, f"Ошибка при чтении файла: {e}")
@@ -700,22 +664,401 @@ def import_schedule(request):
 
     return redirect('admin_dashboard')
 
-def download_template(request):
+
+# ============ ОБРАБОТЧИКИ ИМПОРТА ============
+
+# ============ ОБРАБОТЧИКИ ИМПОРТА (ЗАМЕНИТЬ ПОЛНОСТЬЮ) ============
+
+def import_schedule_data(request, df):
+    created = 0
+    skipped = 0
+    errors = 0
+    conflicts = []
+    error_details = []
+    
+    institution = Institution.objects.first()
+    if not institution:
+        messages.error(request, "❌ Нет учебного заведения. Сначала создайте учреждение в админ-панели.")
+        return
+    
+    # Кешируем справочники
+    group_names = df['Группа'].dropna().unique()
+    discipline_names = df['Дисциплина'].dropna().unique()
+    
+    groups_cache = {
+        g.name: g for g in Group.objects.filter(name__in=group_names, institution=institution)
+    }
+    disciplines_cache = {
+        d.name: d for d in Discipline.objects.filter(name__in=discipline_names, institution=institution)
+    }
+    
+    teacher_last_names = df['Преподаватель'].dropna().apply(
+        lambda x: str(x).split()[0]
+    ).unique()
+    teachers_cache = {
+        t.last_name: t for t in Teacher.objects.filter(
+            last_name__in=teacher_last_names, 
+            institution=institution
+        )
+    }
+    
+    # Проверяем не найденные группы и дисциплины
+    missing_groups = set(group_names) - set(groups_cache.keys())
+    missing_disciplines = set(discipline_names) - set(disciplines_cache.keys())
+    
+    if missing_groups:
+        messages.warning(request, f"⚠️ Группы не найдены в БД: {', '.join(sorted(missing_groups)[:5])}")
+    if missing_disciplines:
+        messages.warning(request, f"⚠️ Дисциплины не найдены в БД: {', '.join(sorted(missing_disciplines)[:5])}")
+    
+    seen = set()
+
+    for idx, row in df.iterrows():
+        try:
+            date = pd.to_datetime(row['Дата']).date()
+            pair = int(row['Пара'])
+            group_name = str(row['Группа']).strip()
+            discipline_name = str(row['Дисциплина']).strip()
+            teacher_name = str(row['Преподаватель']).strip()
+            
+            # Дубли в файле
+            key = (date, pair, group_name)
+            if key in seen:
+                skipped += 1
+                continue
+            seen.add(key)
+            
+            group = groups_cache.get(group_name)
+            discipline = disciplines_cache.get(discipline_name)
+            teacher_parts = teacher_name.split()
+            teacher = teachers_cache.get(teacher_parts[0]) if teacher_parts else None
+            
+            # Собираем причину ошибки
+            missing = []
+            if not group:
+                missing.append(f"группа '{group_name}' не найдена")
+            if not discipline:
+                missing.append(f"дисциплина '{discipline_name}' не найдена")
+            if not teacher:
+                missing.append(f"преподаватель '{teacher_name}' не найден")
+            
+            if missing:
+                error_detail = f"Строка {idx+2}: {', '.join(missing)}"
+                error_details.append(error_detail)
+                errors += 1
+                continue
+            
+            # Конфликт в БД
+            existing = Lesson.objects.filter(date=date, pair_number=pair, group=group).first()
+            if existing:
+                conflict_msg = f"{date} | пара {pair} | {group.name} — уже '{existing.discipline}'"
+                conflicts.append(conflict_msg)
+                skipped += 1
+                continue
+            
+            lesson = Lesson.objects.create(
+                date=date,
+                pair_number=pair,
+                group=group,
+                discipline=discipline,
+                teacher=teacher,
+                topic=str(row.get('Тема', ''))
+            )
+            
+            students = group.students.all()
+            if students.exists():
+                grades = [Grade(student=s, lesson=lesson) for s in students]
+                Grade.objects.bulk_create(grades, ignore_conflicts=True)
+            
+            created += 1
+            
+        except Exception as e:
+            error_detail = f"Строка {idx+2}: ошибка обработки — {str(e)}"
+            error_details.append(error_detail)
+            errors += 1
+
+    show_import_result(request, created, skipped, errors, conflicts, error_details)
+
+
+def import_students_data(request, df):
+    created = 0
+    skipped = 0
+    errors = 0
+    error_details = []
+    
+    institution = Institution.objects.first()
+    if not institution:
+        messages.error(request, "❌ Нет учебного заведения.")
+        return
+    
+    group_names = df['Группа'].dropna().unique()
+    groups_cache = {
+        g.name: g for g in Group.objects.filter(name__in=group_names, institution=institution)
+    }
+    
+    missing_groups = set(group_names) - set(groups_cache.keys())
+    if missing_groups:
+        messages.warning(request, f"⚠️ Группы не найдены: {', '.join(sorted(missing_groups)[:5])}")
+    
+    for idx, row in df.iterrows():
+        try:
+            last_name = str(row['Фамилия']).strip()
+            first_name = str(row['Имя']).strip()
+            middle_name = str(row.get('Отчество', '')).strip()
+            group_name = str(row['Группа']).strip()
+            
+            if not last_name or not first_name:
+                error_details.append(f"Строка {idx+2}: пустые Фамилия или Имя")
+                errors += 1
+                continue
+            
+            group = groups_cache.get(group_name)
+            if not group:
+                error_details.append(f"Строка {idx+2}: группа '{group_name}' не найдена")
+                errors += 1
+                continue
+            
+            student_id = str(row.get('Номер студенческого', '')).strip()
+            if not student_id:
+                import random
+                student_id = f"ST{random.randint(10000, 99999)}"
+            
+            # Проверка уникальности
+            if Student.objects.filter(student_id=student_id).exists():
+                error_details.append(f"Строка {idx+2}: студенческий '{student_id}' уже существует")
+                skipped += 1
+                continue
+                
+            if Student.objects.filter(last_name=last_name, first_name=first_name, group=group).exists():
+                skipped += 1
+                continue
+            
+            Student.objects.create(
+                last_name=last_name,
+                first_name=first_name,
+                middle_name=middle_name,
+                group=group,
+                student_id=student_id
+            )
+            created += 1
+                
+        except Exception as e:
+            error_details.append(f"Строка {idx+2}: {str(e)}")
+            errors += 1
+
+    show_import_result(request, created, skipped, errors, error_details=error_details)
+
+
+def import_teachers_data(request, df):
+    created = 0
+    skipped = 0
+    errors = 0
+    error_details = []
+    
+    institution = Institution.objects.first()
+    if not institution:
+        messages.error(request, "❌ Нет учебного заведения.")
+        return
+    
+    for idx, row in df.iterrows():
+        try:
+            last_name = str(row['Фамилия']).strip()
+            first_name = str(row['Имя']).strip()
+            middle_name = str(row.get('Отчество', '')).strip()
+            phone = str(row.get('Телефон', '')).strip()
+            
+            if not last_name or not first_name:
+                error_details.append(f"Строка {idx+2}: пустые Фамилия или Имя")
+                errors += 1
+                continue
+            
+            if Teacher.objects.filter(last_name=last_name, first_name=first_name, institution=institution).exists():
+                skipped += 1
+                continue
+            
+            # Создаём пользователя
+            import random
+            username = f"teacher_{last_name.lower()}_{random.randint(10, 99)}"
+            
+            # Проверка уникальности username
+            if User.objects.filter(username=username).exists():
+                username = f"{username}_{random.randint(100, 999)}"
+            
+            user = User.objects.create_user(
+                username=username,
+                password='Teacher123',
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+            Teacher.objects.create(
+                user=user,
+                institution=institution,
+                last_name=last_name,
+                first_name=first_name,
+                middle_name=middle_name,
+                phone=phone
+            )
+            created += 1
+                
+        except Exception as e:
+            error_details.append(f"Строка {idx+2}: {str(e)}")
+            errors += 1
+
+    show_import_result(request, created, skipped, errors, error_details=error_details)
+
+
+def import_disciplines_data(request, df):
+    created = 0
+    skipped = 0
+    errors = 0
+    error_details = []
+    
+    institution = Institution.objects.first()
+    if not institution:
+        messages.error(request, "❌ Нет учебного заведения.")
+        return
+    
+    for idx, row in df.iterrows():
+        try:
+            name = str(row['Название']).strip()
+            code = str(row.get('Код', '')).strip()
+            
+            if not name:
+                error_details.append(f"Строка {idx+2}: пустое название дисциплины")
+                errors += 1
+                continue
+            
+            if Discipline.objects.filter(name=name, institution=institution).exists():
+                skipped += 1
+                continue
+            
+            Discipline.objects.create(name=name, code=code, institution=institution)
+            created += 1
+            
+        except Exception as e:
+            error_details.append(f"Строка {idx+2}: {str(e)}")
+            errors += 1
+
+    show_import_result(request, created, skipped, errors, error_details=error_details)
+
+
+def import_groups_data(request, df):
+    created = 0
+    skipped = 0
+    errors = 0
+    error_details = []
+    
+    institution = Institution.objects.first()
+    if not institution:
+        messages.error(request, "❌ Нет учебного заведения.")
+        return
+    
+    for idx, row in df.iterrows():
+        try:
+            name = str(row['Название']).strip()
+            specialty = str(row.get('Специальность', 'Не указана')).strip()
+            start_year = int(row['Год начала']) if 'Год начала' in row else 2025
+            
+            if not name:
+                error_details.append(f"Строка {idx+2}: пустое название группы")
+                errors += 1
+                continue
+            
+            if Group.objects.filter(name=name, institution=institution).exists():
+                skipped += 1
+                continue
+            
+            Group.objects.create(
+                institution=institution,
+                name=name,
+                specialty=specialty,
+                start_year=start_year
+            )
+            created += 1
+            
+        except Exception as e:
+            error_details.append(f"Строка {idx+2}: {str(e)}")
+            errors += 1
+
+    show_import_result(request, created, skipped, errors, error_details=error_details)
+
+
+# ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============
+
+def show_import_result(request, created, skipped=0, errors=0, conflicts=None, error_details=None):
+    """Показывает результат импорта с детализацией"""
+    if created:
+        messages.success(request, f"✅ Успешно импортировано: {created} записей")
+    
+    if skipped:
+        messages.warning(request, f"⚠️ Пропущено (дубликаты): {skipped} записей")
+    
+    if conflicts:
+        conflict_msg = "⚠️ Конфликты расписания:\n"
+        conflict_msg += "\n".join(f"• {c}" for c in conflicts[:10])
+        if len(conflicts) > 10:
+            conflict_msg += f"\n... и ещё {len(conflicts) - 10}"
+        messages.warning(request, conflict_msg)
+    
+    if errors:
+        error_msg = f"❌ Ошибок при импорте: {errors} записей"
+        if error_details:
+            error_msg += "\n\nПервые ошибки:\n"
+            error_msg += "\n".join(f"• {e}" for e in error_details[:5])
+            if len(error_details) > 5:
+                error_msg += f"\n... и ещё {len(error_details) - 5}"
+        messages.error(request, error_msg)
+    
+    if not created and not errors and not skipped:
+        messages.info(request, "ℹ️ Ничего не импортировано — все данные уже существуют")
+
+
+# ============ СКАЧИВАНИЕ ШАБЛОНОВ ============
+
+def download_template(request, template_type):
+    from openpyxl import Workbook
+    
     wb = Workbook()
     ws = wb.active
-    ws.title = "Расписание"
-
-    headers = ["Дата", "Пара", "Группа", "Дисциплина", "Преподаватель", "Тема"]
-    ws.append(headers)
-
-    # пример строки
-    ws.append(["2026-04-18", 1, "ИС-21", "Математика", "Иванов Иван", "Пределы"])
-
+    
+    templates = {
+        'schedule': {
+            'title': 'Расписание',
+            'headers': ['Дата', 'Пара', 'Группа', 'Дисциплина', 'Преподаватель', 'Тема'],
+            'example': ['2026-04-18', 1, 'ИС-21', 'Математика', 'Иванов Иван Иванович', 'Пределы']
+        },
+        'students': {
+            'title': 'Студенты',
+            'headers': ['Фамилия', 'Имя', 'Отчество', 'Группа', 'Номер студенческого'],
+            'example': ['Иванов', 'Иван', 'Иванович', 'ИС-21', 'ST-2025-001']
+        },
+        'teachers': {
+            'title': 'Преподаватели',
+            'headers': ['Фамилия', 'Имя', 'Отчество', 'Телефон'],
+            'example': ['Петров', 'Пётр', 'Петрович', '+79991234567']
+        },
+        'disciplines': {
+            'title': 'Дисциплины',
+            'headers': ['Название', 'Код'],
+            'example': ['Математика', 'MATH101']
+        },
+        'groups': {
+            'title': 'Группы',
+            'headers': ['Название', 'Специальность', 'Год начала'],
+            'example': ['ИС-21', 'Информационные системы', 2025]
+        },
+    }
+    
+    config = templates.get(template_type, templates['schedule'])
+    ws.title = config['title']
+    ws.append(config['headers'])
+    ws.append(config['example'])
+    
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = 'attachment; filename=template.xlsx'
-
+    response['Content-Disposition'] = f'attachment; filename=template_{template_type}.xlsx'
     wb.save(response)
     return response
 
